@@ -160,6 +160,7 @@ function(px4_os_add_flags)
                 ${DSPAL_ROOT}/uart_esc/inc
                 src/platforms/qurt/include
                 src/platforms/posix/include
+                ${HEXAGON_DRIVERS_ROOT}/inc
                 )
 
         set(added_definitions

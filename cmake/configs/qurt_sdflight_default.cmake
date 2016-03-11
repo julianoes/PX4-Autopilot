@@ -62,6 +62,7 @@ set(config_module_list
 	drivers/gps
 	drivers/pwm_out_rc_in
 	drivers/qshell/qurt
+	drivers/rc_receiver
 
 	#
 	# Libraries

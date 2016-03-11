@@ -38,6 +38,7 @@ px4_add_module(
 	SRCS
 		rc_receiver.cpp
 		rc_receiver_params.c
+		dsm.cpp
 	DEPENDS
 		platforms__common
 	)

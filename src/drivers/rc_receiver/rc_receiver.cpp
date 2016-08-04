@@ -129,87 +129,100 @@ void stop()
 
 // state of add_dsm_input
 struct {
-    uint8_t frame[16];
-    uint8_t partial_frame_count;
-    uint32_t last_input_ms;
+	uint8_t frame[16];
+	uint8_t partial_frame_count;
+	uint32_t last_input_ms;
 } dsm;
 /*
   add some bytes of input in DSM serial stream format, coping with partial packets
  */
 void add_dsm_input(const uint8_t *bytes, size_t nbytes)
 {
-    if (nbytes == 0) {
-        return;
-    }
-    const uint8_t dsm_frame_size = sizeof(dsm.frame);
+	if (nbytes == 0) {
+		return;
+	}
 
-    uint32_t now = hrt_absolute_time()/1000;
-    if (now - dsm.last_input_ms > 5) {
-        // resync based on time
-        dsm.partial_frame_count = 0;
-    }
-    dsm.last_input_ms = now;
+	const uint8_t dsm_frame_size = sizeof(dsm.frame);
 
-    while (nbytes > 0) {
-        size_t n = nbytes;
-        if (dsm.partial_frame_count + n > dsm_frame_size) {
-            n = dsm_frame_size - dsm.partial_frame_count;
-        }
-        if (n > 0) {
-            memcpy(&dsm.frame[dsm.partial_frame_count], bytes, n);
-            dsm.partial_frame_count += n;
-            nbytes -= n;
-            bytes += n;
-        }
+	uint32_t now = hrt_absolute_time() / 1000;
 
-	if (dsm.partial_frame_count == dsm_frame_size) {
-            dsm.partial_frame_count = 0;
-            uint16_t values[16] {};
-            uint16_t num_values=0;
-            if (dsm_decode(hrt_absolute_time(), dsm.frame, values, &num_values, 16) &&
-                num_values >= 5) {
-                for (uint8_t i=0; i<num_values; i++) {
-                    if (values[i] != 0) {
-                        rc_inputs[i] = values[i];
-                    }
-                }
-                /*
-                  the apparent number of channels can change on DSM,
-                  as they are spread across multiple frames. We just
-                  use the max num_values we get
-                 */
-                if (num_values > _num_channels) {
-                    _num_channels = num_values;
-                }
-                new_rc_input = true;
+	if (now - dsm.last_input_ms > 5) {
+		// resync based on time
+		dsm.partial_frame_count = 0;
+	}
 
-                //PX4_WARN("Decoded DSM %u channels %u %u %u %u %u %u %u %u\n",
-                //           (unsigned)num_values,
-                //            values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7]);
-            }
-        }
-    }
+	dsm.last_input_ms = now;
+
+	while (nbytes > 0) {
+		size_t n = nbytes;
+
+		if (dsm.partial_frame_count + n > dsm_frame_size) {
+			n = dsm_frame_size - dsm.partial_frame_count;
+		}
+
+		if (n > 0) {
+			memcpy(&dsm.frame[dsm.partial_frame_count], bytes, n);
+			dsm.partial_frame_count += n;
+			nbytes -= n;
+			bytes += n;
+		}
+
+		if (dsm.partial_frame_count == dsm_frame_size) {
+			dsm.partial_frame_count = 0;
+			uint16_t values[16] {};
+			uint16_t num_values = 0;
+
+			if (dsm_decode(hrt_absolute_time(), dsm.frame, values, &num_values, 16) &&
+			    num_values >= 5) {
+				for (uint8_t i = 0; i < num_values; i++) {
+					if (values[i] != 0) {
+						rc_inputs[i] = values[i];
+					}
+				}
+
+				/*
+				  the apparent number of channels can change on DSM,
+				  as they are spread across multiple frames. We just
+				  use the max num_values we get
+				 */
+				if (num_values > _num_channels) {
+					_num_channels = num_values;
+				}
+
+				new_rc_input = true;
+
+				//PX4_WARN("Decoded DSM %u channels %u %u %u %u %u %u %u %u\n",
+				//           (unsigned)num_values,
+				//            values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7]);
+			}
+		}
+	}
 }
 
 void init()
 {
-    serial_fd = ::open(_device, O_RDONLY|O_NONBLOCK);
-    if (serial_fd == -1) {
-        PX4_WARN("Unable to open RC input %s", _device);
-    }
+	serial_fd = ::open(_device, O_RDONLY | O_NONBLOCK);
 
-    struct dspal_serial_ioctl_data_rate rate;
-    rate.bit_rate = DSPAL_SIO_BITRATE_115200;
-    int ret = ioctl(serial_fd, SERIAL_IOCTL_SET_DATA_RATE, (void *)&rate);
+	if (serial_fd == -1) {
+		PX4_WARN("Unable to open RC input %s", _device);
+	}
 
-    struct dspal_serial_ioctl_receive_data_callback callback;
-    callback.rx_data_callback_func_ptr = read_callback_trampoline;
-    ret = ioctl(serial_fd, SERIAL_IOCTL_SET_RECEIVE_DATA_CALLBACK, (void *)&callback);
+	struct dspal_serial_ioctl_data_rate rate;
+
+	rate.bit_rate = DSPAL_SIO_BITRATE_115200;
+
+	int ret = ioctl(serial_fd, SERIAL_IOCTL_SET_DATA_RATE, (void *)&rate);
+
+	struct dspal_serial_ioctl_receive_data_callback callback;
+
+	callback.rx_data_callback_func_ptr = read_callback_trampoline;
+
+	ret = ioctl(serial_fd, SERIAL_IOCTL_SET_RECEIVE_DATA_CALLBACK, (void *)&callback);
 }
 
 void read_callback_trampoline(void *ctx, char *buf, size_t size)
 {
-    read_callback(buf, size);
+	read_callback(buf, size);
 }
 
 /*
@@ -217,7 +230,7 @@ void read_callback_trampoline(void *ctx, char *buf, size_t size)
  */
 void read_callback(char *buf, size_t size)
 {
-    add_dsm_input((const uint8_t *)buf, size);
+	add_dsm_input((const uint8_t *)buf, size);
 }
 
 void task_main_trampoline(int argc, char *argv[])
@@ -273,6 +286,7 @@ void task_main(int argc, char *argv[])
 				continue;
 			}
 		}
+
 		if (new_rc_input) {
 			num_channels = _num_channels;
 			_rc_in.timestamp_publication = ts;
@@ -287,6 +301,7 @@ void task_main(int argc, char *argv[])
 			_rc_in.rc_total_frame_count = 1;
 			new_rc_input = false;
 		}
+
 		for (uint32_t i = 0; i < num_channels; i++) {
 			// Scale the Spektrum DSM value to ppm encoding. This is for the
 			// consistency with PX4 which internally translates DSM to PPM.
@@ -295,8 +310,10 @@ void task_main(int argc, char *argv[])
 			// format, so we need to double the channel value before the scaling
 			_rc_in.values[i] = rc_inputs[i];
 		}
+
 		orb_publish(ORB_ID(input_rc), _input_rc_pub, &_rc_in);
 	}
+
 	::close(serial_fd);
 }
 

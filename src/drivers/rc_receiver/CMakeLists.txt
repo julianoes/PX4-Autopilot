@@ -37,9 +37,8 @@ px4_add_module(
 		-Os
 	SRCS
 		rc_receiver.cpp
-		rc_receiver_params.c
 		dsm.cpp
 	DEPENDS
 		platforms__common
 	)
-# vim: set noet ft=cmake fenc=utf-8 ff=unix : 
+# vim: set noet ft=cmake fenc=utf-8 ff=unix :

@@ -37,7 +37,6 @@
 #include <string.h>
 #include <drivers/drv_hrt.h>
 #include <uORB/topics/input_rc.h>
-#include <uORB/topics/parameter_update.h>
 #include <drivers/drv_rc_input.h>
 #include <dev_fs_lib_serial.h>
 #include "dsm.h"
@@ -75,14 +74,9 @@ orb_advert_t _input_rc_pub = nullptr;
 /** rc_input uorb topic data */
 struct input_rc_s _rc_in;
 
-/**< parameter update subscription */
-int _params_sub;
 
 unsigned int counter = 0;
 unsigned int _num_channels = 0;
-struct {
-	param_t rc_receiver_type;
-} _params_handles;  /**< parameter handles */
 
 int serial_fd;
 
@@ -103,48 +97,7 @@ void read_callback(char *buf, size_t size);
 /** mpu9x50 measurement thread primary entry point */
 void task_main(int argc, char *argv[]);
 
-/** update all parameters */
-void parameters_update();
-
-/** initialize all parameter handles and load the initial parameter values */
-void parameters_init();
-
 void add_dsm_input(const uint8_t *bytes, size_t nbytes);
-
-/** poll parameter update */
-void parameter_update_poll();
-
-void parameters_update()
-{
-	PX4_DEBUG("rc_receiver_parameters_update");
-	float v;
-
-	// accel params
-	if (param_get(_params_handles.rc_receiver_type, &v) == 0) {
-		PX4_DEBUG("rc_receiver_parameters_update rc_receiver_type %f", v);
-	}
-}
-
-void parameters_init()
-{
-	_params_handles.rc_receiver_type	=	param_find("RC_RECEIVER_TYPE");
-
-	parameters_update();
-}
-
-void parameter_update_poll()
-{
-	bool updated;
-
-	/* Check if parameters have changed */
-	orb_check(_params_sub, &updated);
-
-	if (updated) {
-		struct parameter_update_s param_update;
-		orb_copy(ORB_ID(parameter_update), _params_sub, &param_update);
-		parameters_update();
-	}
-}
 
 void start()
 {
@@ -190,13 +143,13 @@ void add_dsm_input(const uint8_t *bytes, size_t nbytes)
     }
     const uint8_t dsm_frame_size = sizeof(dsm.frame);
 
-    uint32_t now = hrt_absolute_time()/1000;    
+    uint32_t now = hrt_absolute_time()/1000;
     if (now - dsm.last_input_ms > 5) {
         // resync based on time
         dsm.partial_frame_count = 0;
     }
     dsm.last_input_ms = now;
-    
+
     while (nbytes > 0) {
         size_t n = nbytes;
         if (dsm.partial_frame_count + n > dsm_frame_size) {
@@ -286,9 +239,6 @@ void task_main(int argc, char *argv[])
 		return ;
 	}
 
-	// subscribe to parameter_update topic
-	_params_sub = orb_subscribe(ORB_ID(parameter_update));
-
 	init();
 	// Continuously receive RC packet from serial device, until task is signaled
 	// to exit
@@ -298,11 +248,9 @@ void task_main(int argc, char *argv[])
 	_rc_in.timestamp_last_signal = ts;
 
 	while (!_task_should_exit) {
-		// poll parameter update
-		parameter_update_poll();
 
 		//PX4_WARN("RC DATA: %d %d %d %d", rc_inputs[0], rc_inputs[1], rc_inputs[2], rc_inputs[3]);
-		
+
 		_rc_in.input_source = input_rc_s::RC_INPUT_SOURCE_QURT;
 
 		ts = hrt_absolute_time();

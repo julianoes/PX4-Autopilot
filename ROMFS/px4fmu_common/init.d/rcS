@@ -178,6 +178,9 @@ then
 		fi
 	fi
 
+	# HACK for old Pixracer
+	param set SYS_AUTOSTART 20000
+
 	#
 	# Set parameters and env variables for selected AUTOSTART
 	#

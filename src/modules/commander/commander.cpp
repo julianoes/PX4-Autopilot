@@ -696,24 +696,24 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 			uint8_t custom_main_mode = (uint8_t)cmd->param2;
 			uint8_t custom_sub_mode = (uint8_t)cmd->param3;
 
-			transition_result_t arming_ret = TRANSITION_NOT_CHANGED;
-
 			transition_result_t main_ret = TRANSITION_NOT_CHANGED;
 
 			/* set HIL state */
 			hil_state_t new_hil_state = (base_mode & VEHICLE_MODE_FLAG_HIL_ENABLED) ? vehicle_status_s::HIL_STATE_ON : vehicle_status_s::HIL_STATE_OFF;
 			transition_result_t hil_ret = hil_state_transition(new_hil_state, status_pub, status_local, &mavlink_log_pub);
 
-			// Transition the arming state
+			// This command used to contain the armed/disarmed information as well.
+			// However, it means that ground station need to read the armed state first
+			// before they can send a DO_SET_MODE command in order not to arm or disarm
+			// the vehicle by accident.
+			// The interface will be deprecated in favor of VEHICLE_CMD_COMPONENT_ARM_DISARM.
+
 			bool cmd_arm = base_mode & VEHICLE_MODE_FLAG_SAFETY_ARMED;
 
-			arming_ret = arm_disarm(cmd_arm, &mavlink_log_pub, "set mode command");
-
-			/* update home position on arming if at least 500 ms from commander start spent to avoid setting home on in-air restart */
-			if (cmd_arm && (arming_ret == TRANSITION_CHANGED) &&
-				(hrt_absolute_time() > (commander_boot_timestamp + INAIR_RESTART_HOLDOFF_INTERVAL))) {
-
-				commander_set_home_position(*home_pub, *home, *local_pos, *global_pos, *attitude);
+			// For now, let's warn the user if the flag is used to arm. Unfortunately, we can't
+			// detect a false disarm, so we can't warn for that case.
+			if (cmd_arm && !armed.armed) {
+				mavlink_log_critical(&mavlink_log_pub, "ignored arming command, please use COMPONENT_ARM_DISARM instead");
 			}
 
 			if (base_mode & VEHICLE_MODE_FLAG_CUSTOM_MODE_ENABLED) {
@@ -801,15 +801,11 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 				}
 			}
 
-			if ((hil_ret != TRANSITION_DENIED) && (arming_ret != TRANSITION_DENIED) && (main_ret != TRANSITION_DENIED)) {
+			if ((hil_ret != TRANSITION_DENIED) && (main_ret != TRANSITION_DENIED)) {
 				cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_ACCEPTED;
 
 			} else {
 				cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED;
-
-				if (arming_ret == TRANSITION_DENIED) {
-					mavlink_log_critical(&mavlink_log_pub, "Rejecting arming cmd");
-				}
 			}
 		}
 		break;

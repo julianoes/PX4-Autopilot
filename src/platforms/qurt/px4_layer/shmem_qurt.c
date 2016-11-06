@@ -148,6 +148,10 @@ void init_shared_memory(void)
 	virt_addr = map_memory(MAP_ADDRESS);
 	shmem_info_p = (struct shmem_info *) virt_addr;
 
+	PX4_INFO("initialized: 0x%x, 0x%x", &shmem_info_p, shmem_info_p);
+	usleep(1000000);
+
+
 	//init lock as 1
 	unsigned char *lock = (unsigned char *)(MAP_ADDRESS + LOCK_OFFSET);
 	*lock = 1;
@@ -254,6 +258,9 @@ void update_index_from_shmem(void)
 		PX4_ERR("Could not get shmem lock\n");
 		return;
 	}
+
+	PX4_INFO("accessed: 0x%x, 0x%x", &shmem_info_p, shmem_info_p);
+	usleep(1000000);
 
 	for (i = 0; i < MAX_SHMEM_PARAMS / 8 + 1; i++) {
 		// Check if any param has been changed.

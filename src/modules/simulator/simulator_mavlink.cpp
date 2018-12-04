@@ -294,14 +294,14 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 
 			hrt_abstime now_us = hrt_absolute_time();
 
-#if 0
+#if 1
 			// This is just for to debug missing HIL_SENSOR messages.
 			static hrt_abstime last_time = 0;
 			hrt_abstime diff = now_us - last_time;
 			float step = diff / 4000.0f;
 
 			if (step > 1.1f || step < 0.9f) {
-				PX4_INFO("time_usec: %llu, diff: %llu, step: %.2f", now_us, diff, step);
+				PX4_INFO("time_usec: %lu, diff: %lu, step: %.2f", now_us, diff, step);
 			}
 
 			last_time = now_us;
@@ -512,7 +512,7 @@ void Simulator::send_mavlink_message(const mavlink_message_t &aMsg)
 	ssize_t len = sendto(_fd, buf, bufLen, 0, (struct sockaddr *)&_srcaddr, sizeof(_srcaddr));
 
 	if (len <= 0) {
-		PX4_WARN("Failed sending mavlink message");
+		PX4_WARN("Failed sending mavlink message: %s", strerror(errno));
 	}
 }
 
@@ -693,7 +693,15 @@ void Simulator::pollForMAVLinkMessages(bool publish, InternetProtocol ip, int po
 				return;
 			}
 
-			int ret = connect(_fd, (struct sockaddr *)&_myaddr, sizeof(_myaddr));
+			int yes = 1;
+			int result = setsockopt(_fd, IPPROTO_TCP, TCP_NODELAY, (char *) &yes, sizeof(int));
+
+			if (result != 0) {
+				PX4_ERR("setsockopt failed: %s", strerror(errno));
+			}
+
+			socklen_t myaddr_len = sizeof(_myaddr);
+			int ret = connect(_fd, (struct sockaddr *)&_myaddr, myaddr_len);
 
 			if (ret == 0) {
 				break;
@@ -706,12 +714,6 @@ void Simulator::pollForMAVLinkMessages(bool publish, InternetProtocol ip, int po
 
 		PX4_INFO("Simulator connected on TCP port %u.", port);
 
-		int yes = 1;
-		int result = setsockopt(_fd, IPPROTO_TCP, TCP_NODELAY, (char *) &yes, sizeof(int));
-
-		if (result != 0) {
-			PX4_ERR("setsockopt failed: %s", strerror(errno));
-		}
 	}
 
 	// Create a thread for sending data to the simulator.
@@ -773,7 +775,7 @@ void Simulator::pollForMAVLinkMessages(bool publish, InternetProtocol ip, int po
 	while (true) {
 
 		// wait for new mavlink messages to arrive
-		int pret = ::poll(&fds[0], fd_count, 4);
+		int pret = ::poll(&fds[0], fd_count, 1000);
 
 		if (pret == 0) {
 			// Timed out.
@@ -896,17 +898,14 @@ int openUart(const char *uart_name, int baud)
 
 	/* Back up the original uart configuration to restore it after exit */
 	if ((termios_state = tcgetattr(uart_fd, &uart_config)) < 0) {
-		warnx("ERR GET CONF %s: %d\n", uart_name, termios_state);
+		PX4_ERR("tcgetattr failed for %s: %s\n", uart_name, strerror(errno));
 		::close(uart_fd);
 		return -1;
 	}
 
-	/* Fill the struct for the new configuration */
-	tcgetattr(uart_fd, &uart_config);
-
 	/* Set baud rate */
 	if (cfsetispeed(&uart_config, speed) < 0 || cfsetospeed(&uart_config, speed) < 0) {
-		warnx("ERR SET BAUD %s: %d\n", uart_name, termios_state);
+		PX4_ERR("cfsetispeed or cfsetospeed failed for %s: %s\n", uart_name, strerror(errno));
 		::close(uart_fd);
 		return -1;
 	}
@@ -915,7 +914,7 @@ int openUart(const char *uart_name, int baud)
 	cfmakeraw(&uart_config);
 
 	if ((termios_state = tcsetattr(uart_fd, TCSANOW, &uart_config)) < 0) {
-		warnx("ERR SET CONF %s\n", uart_name);
+		PX4_ERR("tcsetattr failed for %s: %s\n", uart_name, strerror(errno));
 		::close(uart_fd);
 		return -1;
 	}

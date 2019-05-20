@@ -93,6 +93,7 @@ px4_add_board(
 		#config
 		#dumpfile
 		#esc_calib
+		gtest
 		hardfault_log
 		#led_control
 		mixer

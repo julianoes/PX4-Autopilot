@@ -1,6 +1,6 @@
 ############################################################################
 #
-# Copyright (c) 2019 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2019 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -30,41 +30,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
-
-include(px4_base)
-
-#=============================================================================
-#
-#	px4_add_gtest
-#
-#	Adds a googletest unit test to the test_results target.
-#
-function(px4_add_gtest)
-	# skip if unit testing is not configured
-	#if(BUILD_TESTING)
-		# parse source file and library dependencies from arguments
-		px4_parse_function_args(
-			NAME px4_add_gtest
-			ONE_VALUE SRC
-			MULTI_VALUE LINKLIBS
-			REQUIRED SRC
-			ARGN ${ARGN})
-
-		# infer test name from source filname
-		get_filename_component(TESTNAME ${SRC} NAME_WE)
-		string(REPLACE Test "" TESTNAME ${TESTNAME})
-		set(TESTNAME unit-${TESTNAME})
-
-		# build a binary for the unit test
-		add_executable(${TESTNAME} EXCLUDE_FROM_ALL ${SRC})
-
-		# link the libary to test and gtest
-		target_link_libraries(${TESTNAME} ${LINKLIBS} gtest_main)
-
-		# add the test to the ctest plan
-		add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
-
-		# attach it to the unit test target
-		add_dependencies(test_results ${TESTNAME})
-	#endif()
-endfunction()
+px4_add_module(
+	MODULE systemcmds__gtest
+	MAIN gtest
+	STACK_MAIN 2500
+	COMPILE_FLAGS
+	SRCS
+		gtest_runner.cpp
+	DEPENDS
+	gtest_main
+	)

@@ -613,7 +613,7 @@ MulticopterPositionControl::run()
 
 			} else {
 				setpoint = _flight_tasks.getPositionSetpoint();
-				_failsafe_land_hysteresis.set_state_and_update(false);
+				_failsafe_land_hysteresis.set_state_and_update(false, time_stamp_current);
 
 				// Check if position, velocity or thrust pairs are valid -> trigger failsaife if no pair is valid
 				if (!(PX4_ISFINITE(setpoint.x) && PX4_ISFINITE(setpoint.y)) &&
@@ -976,7 +976,7 @@ void
 MulticopterPositionControl::failsafe(vehicle_local_position_setpoint_s &setpoint, const PositionControlStates &states,
 				     const bool force, const bool warn)
 {
-	_failsafe_land_hysteresis.set_state_and_update(true);
+	_failsafe_land_hysteresis.set_state_and_update(true, hrt_absolute_time());
 
 	if (!_failsafe_land_hysteresis.get_state() && !force) {
 		// just keep current setpoint and don't do anything.

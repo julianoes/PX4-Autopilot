@@ -40,6 +40,8 @@
 
 #include "hysteresis.h"
 
+#error getting compiled
+
 
 static constexpr hrt_abstime SOME_START_TIME = 1558359616134000llu;
 

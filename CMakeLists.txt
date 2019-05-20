@@ -425,9 +425,9 @@ set(TESTFILTER "" CACHE STRING "Filter string for ctest to selectively only run 
 # if testing is enabled download and configure gtest
 list(APPEND CMAKE_MODULE_PATH ${PX4_SOURCE_DIR}/cmake/gtest/)
 include(px4_add_gtest)
-if(BUILD_TESTING)
+#if(BUILD_TESTING)
 	include(gtest)
-endif()
+#endif()
 
 add_custom_target(test_results
 		COMMAND GTEST_COLOR=1 ${CMAKE_CTEST_COMMAND} --output-on-failure -T Test -R ${TESTFILTER} USES_TERMINAL

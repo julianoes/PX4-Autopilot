@@ -61,3 +61,6 @@
 [submodule "platforms/nuttx/NuttX/libcxx"]
 	path = platforms/nuttx/NuttX/libcxx
 	url = https://github.com/PX4/libcxx.git
+[submodule "src/lib/gtest/googletest"]
+	path = src/lib/gtest/googletest
+	url = https://github.com/google/googletest.git

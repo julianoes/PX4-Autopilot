@@ -43,6 +43,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include <hysteresis/hysteresis.h>
+
 
 __BEGIN_DECLS
 __EXPORT int gtest_main(int argc, char *argv[]);
@@ -85,14 +87,15 @@ gtest_main(int argc, char *argv[])
 	}
 
 	if (strcmp(argv[1], "all") == 0) {
-		return 0;//run_all_tests();
+		::testing::InitGoogleTest();
+		return RUN_ALL_TESTS();
 	} else {
 		usage(nullptr);
 		return 1;
 	}
 }
 
-int run_all_tests()
+TEST(Dummy, Foo)
 {
-    return RUN_ALL_TESTS();
+	ASSERT_FALSE(true);
 }

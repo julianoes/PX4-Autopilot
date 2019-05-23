@@ -52,9 +52,10 @@ include(px4_base)
 function(px4_os_add_flags)
 
 	include_directories(BEFORE SYSTEM
-		${PX4_BINARY_DIR}/NuttX/nuttx/include/libcxx
-		#${PX4_BINARY_DIR}/NuttX/nuttx/include/cxx
 		${PX4_BINARY_DIR}/NuttX/nuttx/include
+		${PX4_BINARY_DIR}/NuttX/nuttx/include/libcxx
+		${PX4_BINARY_DIR}/NuttX/nuttx/include/libcxx/include
+		#${PX4_BINARY_DIR}/NuttX/nuttx/include/cxx
 	)
 
 	include_directories(

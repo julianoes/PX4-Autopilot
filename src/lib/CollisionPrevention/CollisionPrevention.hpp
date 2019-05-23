@@ -42,6 +42,7 @@
 #pragma once
 
 #include <px4_module_params.h>
+#include <cmath>
 #include <float.h>
 #include <matrix/matrix/math.hpp>
 #include <uORB/topics/obstacle_distance.h>

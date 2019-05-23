@@ -35,8 +35,20 @@ px4_add_module(
 	MAIN gtest
 	STACK_MAIN 2500
 	COMPILE_FLAGS
+		-DGTEST_HAS_POSIX_RE=0
+		-DGTEST_HAS_CLONE=0
+		-DGTEST_HAS_EXCEPTIONS=0
+		-DGTEST_HAS_TR1_TUPLE=0
+		-DGTEST_HAS_STREAM_REDIRECTION=0
+		-DGTEST_HAS_RTTI=0
+		-DGTEST_HAS_CXXABI_H_=0
 	SRCS
+		#${gtest_test_sources}
+		${PX4_SOURCE_DIR}/src/lib/hysteresis/hysteresis_test.cpp
 		gtest_runner.cpp
 	DEPENDS
+	hysteresis
+	gtest
 	gtest_main
+	TESTING
 	)

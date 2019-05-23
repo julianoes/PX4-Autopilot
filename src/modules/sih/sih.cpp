@@ -462,7 +462,7 @@ void Sih::send_gps()
     _vehicle_gps_pos.vel_n_m_s=_gps_vel(0);             // GPS North velocity, (metres/sec)
     _vehicle_gps_pos.vel_e_m_s=_gps_vel(1);             // GPS East velocity, (metres/sec)
     _vehicle_gps_pos.vel_d_m_s=_gps_vel(2);             // GPS Down velocity, (metres/sec)
-    _vehicle_gps_pos.cog_rad=atan2(_gps_vel(1),_gps_vel(0));    // Course over ground (NOT heading, but direction of movement), -PI..PI, (radians)
+    _vehicle_gps_pos.cog_rad=atan2f(_gps_vel(1),_gps_vel(0));    // Course over ground (NOT heading, but direction of movement), -PI..PI, (radians)
     if (_vehicle_gps_pos_pub != nullptr) {
         orb_publish(ORB_ID(vehicle_gps_position), _vehicle_gps_pos_pub, &_vehicle_gps_pos);
     } else {
@@ -501,7 +501,7 @@ void Sih::publish_sih()
     } else {
         _att_gt_sub = orb_advertise(ORB_ID(vehicle_attitude_groundtruth), &_att_gt);
     }
-} 
+}
 
 float Sih::generate_wgn()   // generate white Gaussian noise sample with std=1
 {

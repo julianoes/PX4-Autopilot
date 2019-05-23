@@ -1,6 +1,6 @@
 ############################################################################
 #
-# Copyright (c) 2019 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2017 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,42 +31,28 @@
 #
 ############################################################################
 
-include(px4_base)
+add_definitions(
+	-DGTEST_HAS_POSIX_RE=0
+	-DGTEST_HAS_CLONE=0
+	-DGTEST_HAS_EXCEPTIONS=0
+	-DGTEST_HAS_TR1_TUPLE=0
+	-DGTEST_HAS_STREAM_REDIRECTION=0
+	-DGTEST_HAS_RTTI=0
+	-DGTEST_HAS_CXXABI_H_=0
+)
 
-#=============================================================================
-#
-#	px4_add_gtest
-#
-#	Adds a googletest unit test to the test_results target.
-#
-function(px4_add_gtest)
-	# skip if unit testing is not configured
-	#if(BUILD_TESTING)
-		# parse source file and library dependencies from arguments
-		px4_parse_function_args(
-			NAME px4_add_gtest
-			ONE_VALUE SRC
-			MULTI_VALUE LINKLIBS
-			REQUIRED SRC
-			ARGN ${ARGN})
+add_subdirectory(googletest)
 
-		# infer test name from source filname
-		get_filename_component(TESTNAME ${SRC} NAME_WE)
-		string(REPLACE Test "" TESTNAME ${TESTNAME})
-		set(TESTNAME unit-${TESTNAME})
+get_target_property(GTEST_COMPILE_FLAGS gtest COMPILE_OPTIONS)
+list(APPEND GTEST_COMPILE_FLAGS "-DGTEST_HAS_POSIX_RE=0")
+list(APPEND GTEST_COMPILE_FLAGS "-DGTEST_HAS_CLONE=0")
+list(APPEND GTEST_COMPILE_FLAGS "-DGTEST_HAS_EXCEPTIONS=0")
+list(APPEND GTEST_COMPILE_FLAGS "-DGTEST_HAS_TR1_TUPLE=0")
+list(APPEND GTEST_COMPILE_FLAGS "-DGTEST_HAS_STREAM_REDIRECTION=0")
+list(APPEND GTEST_COMPILE_FLAGS "-DGTEST_HAS_RTTI=0")
+list(APPEND GTEST_COMPILE_FLAGS "-DGTEST_HAS_CXXABI_H_=0")
+list(REMOVE_ITEM GTEST_COMPILE_FLAGS "-include")
+list(REMOVE_ITEM GTEST_COMPILE_FLAGS "visibility.h")
+set_target_properties(gtest PROPERTIES COMPILE_OPTIONS "${GTEST_COMPILE_FLAGS}")
 
-		# build a binary for the unit test
-		add_executable(${TESTNAME} EXCLUDE_FROM_ALL ${SRC})
-
-		# link the libary to test and gtest
-		target_link_libraries(${TESTNAME} ${LINKLIBS} gtest_main)
-
-		# add the test to the ctest plan
-		add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
-
-		# attach it to the unit test target
-		add_dependencies(test_results ${TESTNAME})
-
-		list(APPEND gtest_test_sources ${SRC})
-	#endif()
-endfunction()
+add_dependencies(gtest prebuild_targets)

@@ -89,7 +89,7 @@ function(px4_add_module)
 		NAME px4_add_module
 		ONE_VALUE MODULE MAIN STACK STACK_MAIN STACK_MAX PRIORITY
 		MULTI_VALUE COMPILE_FLAGS LINK_FLAGS SRCS INCLUDES DEPENDS MODULE_CONFIG
-		OPTIONS EXTERNAL DYNAMIC UNITY_BUILD
+		OPTIONS EXTERNAL DYNAMIC UNITY_BUILD TESTING
 		REQUIRED MODULE MAIN
 		ARGN ${ARGN})
 
@@ -208,7 +208,10 @@ function(px4_add_module)
 		#  as well as interface include and libraries
 		foreach(dep ${DEPENDS})
 			get_target_property(dep_type ${dep} TYPE)
-			if (${dep_type} STREQUAL "STATIC_LIBRARY")
+			if (TESTING)
+				add_dependencies(${MODULE} ${dep})
+				set_target_properties(${MODULE} LINK_FLAGS "-Wl,--whole-archive,-l${dep},--no-whole-archive")
+			elseif (${dep_type} STREQUAL "STATIC_LIBRARY")
 				target_link_libraries(${MODULE} PRIVATE ${dep})
 			else()
 				add_dependencies(${MODULE} ${dep})

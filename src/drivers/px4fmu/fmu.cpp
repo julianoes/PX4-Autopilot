@@ -39,6 +39,7 @@
 
 #include <float.h>
 #include <math.h>
+#include <stdlib.h>
 
 #include <board_config.h>
 #include <drivers/device/device.h>

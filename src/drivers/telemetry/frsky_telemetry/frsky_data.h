@@ -43,6 +43,7 @@
 #define _FRSKY_DATA_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 // Public functions
 bool frsky_init(void);

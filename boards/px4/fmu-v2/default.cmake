@@ -28,7 +28,7 @@ px4_add_board(
 		#differential_pressure # all available differential pressure drivers
 		differential_pressure/ms4525
 		#distance_sensor # all available distance sensor drivers
-		distance_sensor/ll40ls
+		#distance_sensor/ll40ls
 		#distance_sensor/sf0x
 		gps
 		#heater
@@ -49,7 +49,7 @@ px4_add_board(
 		#pca9685
 		#protocol_splitter
 		#pwm_input
-		pwm_out_sim
+		#pwm_out_sim
 		px4flow
 		px4fmu
 		px4io
@@ -70,8 +70,8 @@ px4_add_board(
 		dataman
 		ekf2
 		events
-		fw_att_control
-		fw_pos_control_l1
+		#fw_att_control
+		#fw_pos_control_l1
 		#gnd_att_control
 		#gnd_pos_control
 		land_detector
@@ -85,7 +85,7 @@ px4_add_board(
 		navigator
 		sensors
 		vmount
-		vtol_att_control
+		#vtol_att_control
 		#wind_estimator
 
 	SYSTEMCMDS
@@ -115,7 +115,7 @@ px4_add_board(
 	EXAMPLES
 		#bottle_drop # OBC challenge
 		#fixedwing_control # Tutorial code from https://px4.io/dev/example_fixedwing_control
-		#hello
+		hello
 		#hwtest # Hardware test
 		#matlab_csv_serial
 		#position_estimator_inav

@@ -42,7 +42,9 @@
 #include "hello_example.h"
 #include <px4_time.h>
 #include <unistd.h>
-#include <stdio.h>
+//#include <stdio.h>
+#include <vector>
+#include <iostream>
 
 px4::AppState HelloExample::appState;
 
@@ -52,11 +54,15 @@ int HelloExample::main()
 
 	int i = 0;
 
-	while (!appState.exitRequested() && i < 5) {
-		px4_sleep(2);
+	std::vector<int> foo;
 
-		printf("  Doing work...\n");
+	while (!appState.exitRequested() && i < 5) {
+		foo.push_back(i);
 		++i;
+	}
+
+	for (const int item : foo) {
+		std::cout << "std::cout << std::vector<int>[i] << " << item << std::endl;;
 	}
 
 	return 0;

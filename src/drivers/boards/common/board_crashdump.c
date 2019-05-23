@@ -1,6 +1,6 @@
-#ifdef CONFIG_BOARD_CRASHDUMP
+#include <nuttx/config.h>
 
-#include <board_config.h>
+#ifdef CONFIG_BOARD_CRASHDUMP
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 
+#include <board_config.h>
 #include <nuttx/board.h>
 
 #include "up_internal.h"
@@ -345,4 +346,6 @@ __EXPORT void board_crashdump(uintptr_t currentsp, FAR void *tcb, FAR const uint
 	board_reset(CONFIG_BOARD_ASSERT_RESET_VALUE);
 }
 
+#else
+#error no crash dump
 #endif /* CONFIG_BOARD_CRASHDUMP */

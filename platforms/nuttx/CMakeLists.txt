@@ -106,6 +106,7 @@ target_link_libraries(px4 PRIVATE
 
 	m
 	gcc
+	#supc++
 	)
 
 target_link_libraries(px4 PRIVATE ${module_libraries})

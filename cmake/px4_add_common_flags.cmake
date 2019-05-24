@@ -48,8 +48,8 @@ function(px4_add_common_flags)
 		-g # always build debug symbols
 
 		# optimization options
-		-fdata-sections
-		-ffunction-sections
+		#-fdata-sections
+		#-ffunction-sections
 		-fomit-frame-pointer
 		-funsafe-math-optimizations
 

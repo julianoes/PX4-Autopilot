@@ -106,6 +106,9 @@ set(PX4_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 list(APPEND CMAKE_MODULE_PATH ${PX4_SOURCE_DIR}/cmake)
 
+# To collect all sources for ntest.
+set_property(GLOBAL PROPERTY ntest_test_sources)
+
 #=============================================================================
 # git
 #
@@ -459,6 +462,11 @@ endif()
 foreach(module ${config_module_list})
 	add_subdirectory(src/${module})
 endforeach()
+
+if (${PX4_PLATFORM} STREQUAL "nuttx")
+	# Must be last to catch all tests defined before.
+	add_subdirectory(src/platforms/nuttx/ntest)
+endif()
 
 # must be the last module before firmware
 add_subdirectory(src/lib/parameters EXCLUDE_FROM_ALL)

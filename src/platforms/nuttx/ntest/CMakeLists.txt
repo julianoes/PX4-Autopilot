@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2017 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2019 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,32 +31,17 @@
 #
 ############################################################################
 
-px4_add_git_submodule(TARGET git_ecl PATH "ecl")
-px4_add_git_submodule(TARGET git_matrix PATH "matrix")
+get_property(sources GLOBAL PROPERTY ntest_test_sources)
 
-add_subdirectory(airspeed)
-add_subdirectory(battery)
-add_subdirectory(bezier)
-add_subdirectory(cdev)
-add_subdirectory(circuit_breaker)
-add_subdirectory(CollisionPrevention)
-add_subdirectory(controllib)
-add_subdirectory(conversion)
-add_subdirectory(drivers)
-add_subdirectory(ecl)
-add_subdirectory(FlightTasks)
-add_subdirectory(hysteresis)
-add_subdirectory(landing_slope)
-add_subdirectory(led)
-add_subdirectory(mathlib)
-add_subdirectory(mixer)
-add_subdirectory(ntestlib)
-add_subdirectory(perf)
-add_subdirectory(pid)
-add_subdirectory(pwm_limit)
-add_subdirectory(rc)
-add_subdirectory(systemlib)
-add_subdirectory(terrain_estimation)
-add_subdirectory(tunes)
-add_subdirectory(version)
-add_subdirectory(WeatherVane)
+px4_add_module(
+	MODULE ntest
+	MAIN ntest
+	STACK_MAIN 2500
+	COMPILE_FLAGS
+	SRCS
+		${sources}
+		ntest_runner.cpp
+	DEPENDS
+		${ntest_dependencies}
+		ntestlib
+	)

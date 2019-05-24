@@ -41,7 +41,7 @@ include(px4_base)
 #
 function(px4_add_gtest)
 	# skip if unit testing is not configured
-	if(BUILD_TESTING)
+	#if(BUILD_TESTING)
 		# parse source file and library dependencies from arguments
 		px4_parse_function_args(
 			NAME px4_add_gtest
@@ -53,18 +53,34 @@ function(px4_add_gtest)
 		# infer test name from source filname
 		get_filename_component(TESTNAME ${SRC} NAME_WE)
 		string(REPLACE Test "" TESTNAME ${TESTNAME})
-		set(TESTNAME unit-${TESTNAME})
 
-		# build a binary for the unit test
-		add_executable(${TESTNAME} EXCLUDE_FROM_ALL ${SRC})
+		if (${PX4_PLATFORM} STREQUAL "nuttx")
 
-		# link the libary to test and gtest
-		target_link_libraries(${TESTNAME} ${LINKLIBS} gtest_main)
+			get_property(sources GLOBAL PROPERTY ntest_test_sources)
+			list(APPEND sources ${CMAKE_CURRENT_SOURCE_DIR}/${SRC})
+			set_property(GLOBAL PROPERTY ntest_test_sources ${sources})
 
-		# add the test to the ctest plan
-		add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
+			get_property(dependencies GLOBAL PROPERTY ntest_test_dependencies)
 
-		# attach it to the unit test target
-		add_dependencies(test_results ${TESTNAME})
-	endif()
+			foreach(dep ${dependencies})
+				list(APPEND dependencies ${dep})
+			endforeach()
+			set_property(GLOBAL PROPERTY ntest_test_dependencies ${dependencies})
+
+		else()
+			set(TESTNAME unit-${TESTNAME})
+			# build a binary for the unit test
+			add_executable(${TESTNAME} EXCLUDE_FROM_ALL ${SRC})
+
+			# attach it to the unit test target
+			add_dependencies(test_results ${TESTNAME})
+
+			# link the libary to test and gtest
+			target_link_libraries(${TESTNAME} ${LINKLIBS} gtest_main)
+
+			# add the test to the ctest plan
+			add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
+
+		endif()
+	#endif()
 endfunction()

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (C) 2019 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2019 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,24 +31,72 @@
  *
  ****************************************************************************/
 
-#ifdef __PX4_NUTTX
-#include <lib/ntestlib/ntestlib.h>
-#else
-#include <gtest/gtest.h>
-#endif
+/**
+ * @file ntest_runner.cpp
+ *
+ * Runs the ntests
+ */
 
-#include "Takeoff.hpp"
+#include <px4_log.h>
+#include <px4_module.h>
+#include <cstdio>
+#include <cstring>
+#include <ntestlib/ntestlib.h>
 
-TEST(TakeoffTest, Initialization)
+
+__BEGIN_DECLS
+__EXPORT int ntest_main(int argc, char *argv[]);
+__END_DECLS
+
+static void usage(const char *reason);
+static int run_all_tests();
+
+
+
+static void
+usage(const char *reason)
 {
-	Takeoff takeoff;
-	EXPECT_EQ(takeoff.getTakeoffState(), TakeoffState::disarmed);
+	if (reason != nullptr) {
+		PX4_WARN("%s", reason);
+	}
+
+	PRINT_MODULE_DESCRIPTION(
+		R"DESCR_STR(
+### Description
+This command runs the ntests.
+
+### Examples
+Run all ntests
+$ ntest all
+
+)DESCR_STR");
+
+
+	PRINT_MODULE_USAGE_NAME("ntest", "command");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("all", "Run all tests");
 }
 
-// TEST(TakeoffTest, Ramp)
-// {
-// 	Takeoff takeoff;
-// 	takeoff.updateTakeoffState(true, false, true, 1.f, false);
-// 	takeoff.updateThrustRamp(1.f, 0.1f);
-// 	EXPECT_EQ(takeoff.getTakeoffState(), TakeoffState::disarmed);
-// }
+int
+ntest_main(int argc, char *argv[])
+{
+	if (argc < 2) {
+		usage(nullptr);
+		return 1;
+	}
+
+	if (strcmp(argv[1], "all") == 0) {
+		return run_all_tests();
+	} else {
+		usage(nullptr);
+		return 1;
+	}
+}
+
+int run_all_tests()
+{
+	PX4_INFO("Running all tests");
+	auto factory = TestFactory::instance().getTest("foo");
+	(void)factory;
+
+	return 0;
+}

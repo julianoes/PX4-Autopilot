@@ -39,7 +39,7 @@
 
 #pragma once
 
-#include <systemlib/hysteresis/hysteresis.h>
+#include <lib/hysteresis/hysteresis.h>
 #include <drivers/drv_hrt.h>
 
 using namespace time_literals;

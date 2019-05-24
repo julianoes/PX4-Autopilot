@@ -31,8 +31,13 @@
  *
  ****************************************************************************/
 
+#ifdef __PX4_NUTTX
+#include <lib/ntestlib/ntestlib.h>
+#else
 #include <gtest/gtest.h>
-#include <AttitudeControl.hpp>
+#endif
+
+#include "AttitudeControl.hpp"
 
 using namespace matrix;
 

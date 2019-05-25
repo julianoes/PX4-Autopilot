@@ -108,7 +108,14 @@ target_link_libraries(px4 PRIVATE
 	gcc
 	)
 
-target_link_libraries(px4 PRIVATE ${module_libraries})
+foreach(module ${module_libraries})
+	# Hack for ntest to avoid the linker from stripping the static global test registrars.
+	if ("${module}" STREQUAL "ntest")
+		target_link_libraries(px4 PRIVATE -Wl,--whole-archive ${module} -Wl,--no-whole-archive)
+	else()
+		target_link_libraries(px4 PRIVATE ${module})
+	endif()
+endforeach()
 
 if (config_romfs_root)
 	add_subdirectory(${PX4_SOURCE_DIR}/ROMFS ${PX4_BINARY_DIR}/ROMFS)

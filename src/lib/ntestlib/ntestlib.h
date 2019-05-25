@@ -124,7 +124,7 @@ public:
     TestBase *getTest() override;
 
 private:
-    volatile const char *_classname;
+    const char *_classname;
 };
 
 template <class TTest>
@@ -132,10 +132,6 @@ TestRegistrar<TTest>::TestRegistrar(const char *classname) : _classname(classnam
 {
     TestFactory& factory = TestFactory::instance();
     factory.registerTest(this, classname);
-
-    volatile unsigned foo;
-    (void)(foo);
-
 }
 
 template <class TTest>
@@ -148,12 +144,14 @@ TestBase *TestRegistrar<TTest>::getTest()
 	class CONCATNAME : public TestBase \
 	{ \
 	public: \
-	    explicit CONCATNAME(); \
+	    CONCATNAME() = default; \
 	    ~CONCATNAME() override = default; \
 	    void run() override; \
 	}; \
-	static TestRegistrar<CONCATNAME> __attribute__((section(".vectors1"))) CONCATNAME##_registrar(#CONCATNAME); \
-	__attribute__((section(".vectors2"))) void CONCATNAME::run()
+	namespace { \
+		static TestRegistrar<CONCATNAME> CONCATNAME##_registrar(#CONCATNAME); \
+	} \
+	void CONCATNAME::run()
 
 #define TEST(_name, _case) \
 	REGISTER_TEST(_name##_case)

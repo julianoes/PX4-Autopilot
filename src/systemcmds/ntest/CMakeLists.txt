@@ -36,7 +36,7 @@ get_property(sources GLOBAL PROPERTY ntest_test_sources)
 px4_add_module(
 	MODULE ntest
 	MAIN ntest
-	STACK_MAIN 2500
+	STACK_MAIN 4000
 	COMPILE_FLAGS
 	SRCS
 		${sources}

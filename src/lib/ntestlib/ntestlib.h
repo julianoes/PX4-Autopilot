@@ -1,5 +1,6 @@
 #pragma once
 
+#include <px4_posix.h>
 #include <cstdio>
 #include <containers/List.hpp>
 
@@ -16,9 +17,8 @@ public:
     TestBase() = default;
     virtual ~TestBase() = default;
 
-    __attribute__((used)) virtual void run() = 0;
+    Result run();
 
-    Result getResult() { return _result; };
     static const char *str(const Result result);
 
     template <typename T>
@@ -46,7 +46,8 @@ public:
         printf("Assert at %s:%s failed\n", extractFilename(file), line);
         printf("%s != %s\n", a_str, b_str);
 
-	// TODO: abort here!
+	_result = Result::Failed;
+	abort_test();
     }
 
 #define EXPECT_EQ(a_, b_) expectEq((a_), (b_), #a_, #b_, __FILE__, __LINE__)
@@ -63,10 +64,13 @@ public:
 	ASSERT_EQ(_expr, false);
 
 protected:
+    virtual void run_testbody() = 0;
     Result _result{Result::Success};
 
 private:
+    static void *run_trampoline(void *self);
     const char *extractFilename(const char *path);
+    void abort_test();
 };
 /**
  * Base class for TestRegistrar
@@ -75,7 +79,7 @@ private:
 class ITestRegistrar
 {
 public:
-    virtual TestBase *getTest() = 0;
+    virtual TestBase *instantiateTest() = 0;
 };
 
 /**
@@ -91,21 +95,19 @@ public:
     TestFactory(TestFactory const&) = delete;
     void operator=(TestFactory const&) = delete;
 
-    /**
-     * Get an instance of a test based on its name.
-     * throws out_of_range if test not found */
+    struct ListEntry : public ListNode<ListEntry *> {
+	const char *testname;
+	TestBase *testbase;
+    };
+
     TestBase *getTest(const char *name);
+    List<ListEntry *> &getAllTests();
+
 
 private:
-    /** Register a new test */
     void registerTest(ITestRegistrar* registrar, const char *name);
 
     TestFactory() = default;
-
-    struct ListEntry : public ListNode<ListEntry *> {
-	const char *testname;
-	ITestRegistrar *registrar;
-    };
 
     List<ListEntry *> _registry; /**< Holds pointers to test registrars */
 
@@ -121,7 +123,7 @@ class TestRegistrar : public ITestRegistrar
 {
 public:
     explicit TestRegistrar(const char *classname);
-    TestBase *getTest() override;
+    TestBase *instantiateTest() override;
 
 private:
     const char *_classname;
@@ -135,7 +137,7 @@ TestRegistrar<TTest>::TestRegistrar(const char *classname) : _classname(classnam
 }
 
 template <class TTest>
-TestBase *TestRegistrar<TTest>::getTest()
+TestBase *TestRegistrar<TTest>::instantiateTest()
 {
     return new TTest();
 }
@@ -145,13 +147,15 @@ TestBase *TestRegistrar<TTest>::getTest()
 	{ \
 	public: \
 	    CONCATNAME() = default; \
-	    ~CONCATNAME() override = default; \
-	    void run() override; \
+	    virtual ~CONCATNAME() override = default; \
+	    virtual void run_testbody() override; \
 	}; \
 	namespace { \
-		static TestRegistrar<CONCATNAME> CONCATNAME##_registrar(#CONCATNAME); \
+		static const char CONCATNAME##name[] = #CONCATNAME; \
+		static TestRegistrar<CONCATNAME> CONCATNAME##_registrar(CONCATNAME##name); \
 	} \
-	void CONCATNAME::run()
+	void CONCATNAME::run_testbody()
 
 #define TEST(_name, _case) \
 	REGISTER_TEST(_name##_case)
+

@@ -1,6 +1,32 @@
 #include "ntestlib.h"
 #include <cstring>
 
+TestBase::Result TestBase::run()
+{
+	pthread_t runner_thread;
+
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+	pthread_attr_setstacksize(&attr, PX4_STACK_ADJUSTED(1000));
+	pthread_create(&runner_thread, &attr, TestBase::run_trampoline, this);
+	pthread_attr_destroy(&attr);
+
+	pthread_join(runner_thread, NULL);
+
+	return _result;
+}
+
+void *TestBase::run_trampoline(void *self)
+{
+	reinterpret_cast<TestBase*>(self)->run_testbody();
+	return nullptr;
+}
+
+void TestBase::abort_test()
+{
+	pthread_exit(NULL);
+}
+
 const char *TestBase::extractFilename(const char *path)
 {
 	const char *pos = strrchr (path, '/');
@@ -32,20 +58,22 @@ void TestFactory::registerTest(ITestRegistrar* registrar, const char *name)
 {
 	auto *entry = new ListEntry();
 	entry->testname = name;
-	entry->registrar = registrar;
+	entry->testbase = registrar->instantiateTest();
 	_registry.add(entry);
-	printf("Adding %s\n", name);
 }
 
 TestBase* TestFactory::getTest(const char *name)
 {
-	printf("in get test\n");
 	for (const auto &entry: _registry) {
-		printf("Comparing: %s and %s\n", entry->testname, name);
 		if (strcmp(entry->testname, name) == 0) {
-			return reinterpret_cast<TestBase *>(entry->registrar);
+			return entry->testbase;
 		}
 	}
-
 	return nullptr;
 }
+
+List<TestFactory::ListEntry *> &TestFactory::getAllTests()
+{
+	return _registry;
+}
+

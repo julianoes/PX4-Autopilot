@@ -70,8 +70,8 @@ px4_add_board(
 		dataman
 		ekf2
 		events
-		fw_att_control
-		fw_pos_control_l1
+		#fw_att_control
+		#fw_pos_control_l1
 		#gnd_att_control
 		#gnd_pos_control
 		land_detector
@@ -85,7 +85,7 @@ px4_add_board(
 		navigator
 		sensors
 		vmount
-		vtol_att_control
+		#vtol_att_control
 		#wind_estimator
 
 	SYSTEMCMDS
@@ -111,6 +111,7 @@ px4_add_board(
 		tune_control
 		#usb_connected
 		ver
+		ntest # needs to be last
 
 	EXAMPLES
 		#bottle_drop # OBC challenge

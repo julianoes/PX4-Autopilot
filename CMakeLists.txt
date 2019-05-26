@@ -463,10 +463,10 @@ foreach(module ${config_module_list})
 	add_subdirectory(src/${module})
 endforeach()
 
-if (${PX4_PLATFORM} STREQUAL "nuttx")
-	# Must be last to catch all tests defined before.
-	add_subdirectory(src/platforms/nuttx/ntest)
-endif()
+#if (${PX4_PLATFORM} STREQUAL "nuttx")
+#	# Must be last to catch all tests defined before.
+#	add_subdirectory(src/platforms/nuttx/ntest)
+#endif()
 
 # must be the last module before firmware
 add_subdirectory(src/lib/parameters EXCLUDE_FROM_ALL)

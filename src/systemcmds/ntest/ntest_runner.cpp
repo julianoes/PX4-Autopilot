@@ -50,7 +50,7 @@ __END_DECLS
 
 static void usage(const char *reason);
 static int run_all_tests();
-
+static void list_all_tests();
 
 
 static void
@@ -69,11 +69,19 @@ This command runs the ntests.
 Run all ntests
 $ ntest all
 
+List all tests
+$ ntest list_tests
+
+Filter tests
+$ ntest filter=TestSuite.TestCase
+
 )DESCR_STR");
 
 
 	PRINT_MODULE_USAGE_NAME("ntest", "command");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("all", "Run all tests");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("list_tests", "List all tests");
+	PRINT_MODULE_USAGE_COMMAND_DESCR("filter", "Filter tests");
 }
 
 int
@@ -86,6 +94,15 @@ ntest_main(int argc, char *argv[])
 
 	if (strcmp(argv[1], "all") == 0) {
 		return run_all_tests();
+
+	} else if (strcmp(argv[1], "list_tests") == 0) {
+		list_all_tests();
+		return 0;
+
+	} else if (strcmp(argv[1], "filter") == 0) {
+		PX4_ERR("not implemented yet");
+		return 1;
+
 	} else {
 		usage(nullptr);
 		return 1;
@@ -94,9 +111,21 @@ ntest_main(int argc, char *argv[])
 
 int run_all_tests()
 {
-	PX4_INFO("Running all tests");
-	auto factory = TestFactory::instance().getTest("foo");
-	(void)factory;
+	bool all_passed = true;
+	for (auto entry : TestFactory::instance().getAllTests()) {
+		printf("Running %s\n", entry->testname);
+		const TestBase::Result result = entry->testbase->run();
+		if (result == TestBase::Result::Success) {
+			printf("--> SUCCESS\n");
+		} else {
+			printf("--> FAILED\n");
+			all_passed = false;
+		}
+	}
 
-	return 0;
+	return (all_passed ? 0 : 1);
+}
+
+void list_all_tests()
+{
 }

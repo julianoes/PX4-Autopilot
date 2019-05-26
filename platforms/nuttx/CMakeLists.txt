@@ -97,7 +97,7 @@ target_link_libraries(px4 PRIVATE
 	-Wl,--script=${PX4_BINARY_DIR_CYG}/NuttX/nuttx-config/scripts/script.ld
 	-Wl,-Map=${PX4_CONFIG}.map
 	-Wl,--warn-common
-	#-Wl,--gc-sections
+	-Wl,--gc-sections
 
 	-Wl,--start-group
 		drivers_boards_common_arch
@@ -112,6 +112,7 @@ foreach(module ${module_libraries})
 	# Hack for ntest to avoid the linker from stripping the static global test registrars.
 	if ("${module}" STREQUAL "ntest")
 		target_link_libraries(px4 PRIVATE -Wl,--whole-archive ${module} -Wl,--no-whole-archive)
+		message(STATUS "Adding ntest")
 	else()
 		target_link_libraries(px4 PRIVATE ${module})
 	endif()

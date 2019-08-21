@@ -260,8 +260,6 @@ int main(int argc, char **argv)
 			return ret;
 		}
 
-		DriverFramework::Framework::initialize();
-
 		px4::init_once();
 		px4::init(argc, argv, "px4");
 

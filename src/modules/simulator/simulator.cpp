@@ -65,16 +65,6 @@ Simulator *Simulator::getInstance()
 	return _instance;
 }
 
-bool Simulator::getGPSSample(uint8_t *buf, int len)
-{
-	return _gps.copyData(buf, len);
-}
-
-void Simulator::write_gps_data(void *buf)
-{
-	_gps.writeData(buf);
-}
-
 void Simulator::parameters_update(bool force)
 {
 	bool updated;
@@ -97,8 +87,6 @@ int Simulator::start(int argc, char *argv[])
 	_instance = new Simulator();
 
 	if (_instance) {
-		drv_led_start();
-
 		if (argc == 4 && strcmp(argv[2], "-u") == 0) {
 			_instance->set_ip(InternetProtocol::UDP);
 			_instance->set_port(atoi(argv[3]));

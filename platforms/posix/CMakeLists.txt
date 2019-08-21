@@ -73,28 +73,31 @@ else()
 
 	target_link_libraries(px4 PRIVATE modules__uORB)
 
-	if(BUILD_TESTING)
-		set(romfs_foldername "px4fmu_test")
-	else()
-		set(romfs_foldername "px4fmu_common")
-	endif()
+	add_subdirectory(${PX4_SOURCE_DIR}/ROMFS ${PX4_BINARY_DIR}/ROMFS)
+
+	get_property(romfs_files GLOBAL PROPERTY PX4_ROMFS_FILES)
 
 	# We copy the ROMFS files over to the rootfs for SITL
-	add_custom_command(OUTPUT ${PX4_BINARY_DIR}/tmp/rootfs/etc
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${PX4_SOURCE_DIR}/ROMFS/${romfs_foldername} ${PX4_BINARY_DIR}/tmp/rootfs/etc
+	add_custom_command(OUTPUT ${PX4_BINARY_DIR}/tmp/rootfs/etc/stamp
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${PX4_SOURCE_DIR}/ROMFS/${config_romfs_root} ${PX4_BINARY_DIR}/tmp/rootfs/etc
+		DEPENDS ${romfs_files}
 		)
 
 	add_custom_target(px4_sitl_etc_files
-		DEPENDS ${PX4_BINARY_DIR}/tmp/rootfs/etc
+		DEPENDS ${PX4_BINARY_DIR}/tmp/rootfs/etc/stamp
 		)
 
+	get_property(test_data_files GLOBAL PROPERTY PX4_TEST_DATA_FILES)
+
 	# We copy the test_data over to the rootfs for SITL
-	add_custom_command(OUTPUT ${PX4_BINARY_DIR}/tmp/rootfs/test_data
+	add_custom_command(OUTPUT ${PX4_BINARY_DIR}/tmp/rootfs/test_data/stamp
 		COMMAND ${CMAKE_COMMAND} -E copy_directory ${PX4_SOURCE_DIR}/test_data ${PX4_BINARY_DIR}/tmp/rootfs/test_data
+		DEPENDS ${test_data_files}
 		)
 
 	add_custom_target(px4_sitl_test_data
-		DEPENDS ${PX4_BINARY_DIR}/tmp/rootfs/test_data
+		DEPENDS
+			${PX4_BINARY_DIR}/tmp/rootfs/test_data/stamp
 		)
 
 	add_dependencies(px4

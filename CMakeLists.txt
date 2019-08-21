@@ -374,6 +374,13 @@ add_subdirectory(msg EXCLUDE_FROM_ALL)
 
 px4_generate_airframes_xml(BOARD ${PX4_BOARD})
 
+
+if(BUILD_TESTING)
+	set(config_romfs_root "px4fmu_test")
+else()
+	set(config_romfs_root "px4fmu_common")
+endif()
+
 #=============================================================================
 # DriverFramework
 #

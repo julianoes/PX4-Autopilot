@@ -1248,10 +1248,7 @@ Commander::run()
 	/* pthread for slow low prio thread */
 	pthread_t commander_low_prio_thread;
 
-	/* initialize */
-	if (led_init() != OK) {
-		PX4_WARN("LED init failed");
-	}
+	led_init();
 
 	if (buzzer_init() != OK) {
 		PX4_WARN("Buzzer init failed");

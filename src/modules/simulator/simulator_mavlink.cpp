@@ -271,22 +271,24 @@ void Simulator::update_sensors(const hrt_abstime &time, const mavlink_hil_sensor
 
 void Simulator::update_gps(const mavlink_hil_gps_t *gps_sim)
 {
-	RawGPSData gps = {};
-	gps.timestamp = hrt_absolute_time();
-	gps.lat = gps_sim->lat;
-	gps.lon = gps_sim->lon;
-	gps.alt = gps_sim->alt;
-	gps.eph = gps_sim->eph;
-	gps.epv = gps_sim->epv;
-	gps.vel = gps_sim->vel;
-	gps.vn = gps_sim->vn;
-	gps.ve = gps_sim->ve;
-	gps.vd = gps_sim->vd;
-	gps.cog = gps_sim->cog;
-	gps.fix_type = gps_sim->fix_type;
-	gps.satellites_visible = gps_sim->satellites_visible;
+	struct vehicle_gps_position_s report {};
+	report.timestamp = hrt_absolute_time();
+	report.lat = gps_sim->lat;
+	report.lon = gps_sim->lon;
+	report.alt = gps_sim->alt;
+	report.eph = (float)gps_sim->eph * 1e-2f;
+	report.epv = (float)gps_sim->epv * 1e-2f;
+	report.vel_m_s = (float)(gps_sim->vel) / 100.0f;
+	report.vel_n_m_s = (float)(gps_sim->vn) / 100.0f;
+	report.vel_e_m_s = (float)(gps_sim->ve) / 100.0f;
+	report.vel_d_m_s = (float)(gps_sim->vd) / 100.0f;
+	report.cog_rad = (float)(gps_sim->cog) * 3.1415f / (100.0f * 180.0f);
+	report.fix_type = gps_sim->fix_type;
+	report.satellites_used = gps_sim->satellites_visible;
+	report.s_variance_m_s = 0.25f;
 
-	write_gps_data((void *)&gps);
+	int instance;
+	orb_publish_auto(ORB_ID(vehicle_gps_position), &_vehicle_gps_position_pub, &report, &instance, ORB_PRIO_HIGH);
 }
 
 void Simulator::handle_message(const mavlink_message_t *msg)

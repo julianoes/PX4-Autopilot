@@ -64,6 +64,7 @@
 #include <uORB/topics/vehicle_angular_velocity.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_global_position.h>
+#include <uORB/topics/vehicle_gps_position.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_odometry.h>
 #include <uORB/topics/vehicle_status.h>
@@ -74,24 +75,6 @@
 
 namespace simulator
 {
-
-#pragma pack(push, 1)
-struct RawGPSData {
-	uint64_t timestamp;
-	int32_t lat;
-	int32_t lon;
-	int32_t alt;
-	uint16_t eph;
-	uint16_t epv;
-	uint16_t vel;
-	int16_t vn;
-	int16_t ve;
-	int16_t vd;
-	uint16_t cog;
-	uint8_t fix_type;
-	uint8_t satellites_visible;
-};
-#pragma pack(pop)
 
 template <typename RType> class Report
 {
@@ -164,10 +147,6 @@ public:
 
 	static int start(int argc, char *argv[]);
 
-	bool getGPSSample(uint8_t *buf, int len);
-
-	void write_gps_data(void *buf);
-
 	void set_ip(InternetProtocol ip);
 	void set_port(unsigned port);
 
@@ -175,12 +154,6 @@ private:
 	Simulator() :
 		ModuleParams(nullptr)
 	{
-		simulator::RawGPSData gps_data{};
-		gps_data.eph = UINT16_MAX;
-		gps_data.epv = UINT16_MAX;
-
-		_gps.writeData(&gps_data);
-
 		_param_sub = orb_subscribe(ORB_ID(parameter_update));
 
 		_battery_status.timestamp = hrt_absolute_time();
@@ -216,8 +189,6 @@ private:
 	PX4Magnetometer		_px4_mag{197388, ORB_PRIO_DEFAULT, ROTATION_NONE}; // 197388: DRV_MAG_DEVTYPE_MAGSIM, BUS: 3, ADDR: 1, TYPE: SIMULATION
 	PX4Barometer		_px4_baro{6620172, ORB_PRIO_DEFAULT}; // 6620172: DRV_BARO_DEVTYPE_BAROSIM, BUS: 1, ADDR: 4, TYPE: SIMULATION
 
-	simulator::Report<simulator::RawGPSData>	_gps{1};
-
 	perf_counter_t _perf_gps{perf_alloc_once(PC_ELAPSED, "sim_gps_delay")};
 	perf_counter_t _perf_sim_delay{perf_alloc_once(PC_ELAPSED, "sim_network_delay")};
 	perf_counter_t _perf_sim_interval{perf_alloc(PC_INTERVAL, "sim_network_interval")};
@@ -229,6 +200,7 @@ private:
 	orb_advert_t _flow_pub{nullptr};
 	orb_advert_t _irlock_report_pub{nullptr};
 	orb_advert_t _visual_odometry_pub{nullptr};
+	orb_advert_t _vehicle_gps_position_pub{nullptr};
 
 	int _param_sub{-1};
 

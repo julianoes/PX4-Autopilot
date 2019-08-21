@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2015 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2018 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,15 +31,28 @@
 #
 ############################################################################
 
-px4_add_module(
-	MODULE drivers__gpssim
-	MAIN gpssim
-	COMPILE_FLAGS
-		-Wno-double-promotion
-		-Wno-cast-align # TODO: fix and enable
-		-Wno-address-of-packed-member # TODO: fix in c_library_v2
-	SRCS
-		gpssim.cpp
-	DEPENDS
-		modules__simulator
-	)
+px4_add_romfs_files(
+	10016_iris
+	10020_if750a
+	1010_iris_opt_flow
+	1010_iris_opt_flow.post
+	1011_iris_irlock
+	1012_iris_rplidar
+	1013_iris_vision
+	1013_iris_vision.post
+	1014_solo
+	1015_iris_obs_avoid
+	1015_iris_obs_avoid.post
+	1020_hippocampus
+	1030_plane
+	1031_plane_cam
+	1040_standard_vtol
+	1041_tailsitter
+	1042_tiltrotor
+	1060_rover
+	6011_typhoon_h480
+	6011_typhoon_h480.post
+	CMakeLists.txt
+	rc.replay
+	rcS
+)

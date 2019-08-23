@@ -58,7 +58,7 @@ else()
 		PRIVATE
 			${module_libraries}
 			${df_driver_libs}
-			df_driver_framework
+			#df_driver_framework
 			pthread m
 
 			# horrible circular dependencies that need to be teased apart

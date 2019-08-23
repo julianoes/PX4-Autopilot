@@ -76,6 +76,7 @@ public:
 	 */
 	static void stop();
 
+	static constexpr int SHUTDOWN_MAGIC = 123456789;
 private:
 	void _print_prompt();
 	void _move_cursor(int position);

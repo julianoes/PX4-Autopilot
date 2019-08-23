@@ -439,7 +439,6 @@ extern "C" {
 
 	void px4_show_devices()
 	{
-		int i = 0;
 		PX4_INFO("PX4 Devices:");
 
 		pthread_mutex_lock(&devmutex);
@@ -452,19 +451,19 @@ extern "C" {
 
 		pthread_mutex_unlock(&devmutex);
 
-		PX4_INFO("DF Devices:");
-		const char *dev_path;
-		unsigned int index = 0;
-		i = 0;
-
-		do {
-			// Each look increments index and returns -1 if end reached
-			i = DevMgr::getNextDeviceName(index, &dev_path);
-
-			if (i == 0) {
-				PX4_INFO("   %s", dev_path);
-			}
-		} while (i == 0);
+//		PX4_INFO("DF Devices:");
+//		const char *dev_path;
+//		unsigned int index = 0;
+//		int i = 0;
+//
+//		do {
+//			// Each look increments index and returns -1 if end reached
+//			i = DevMgr::getNextDeviceName(index, &dev_path);
+//
+//			if (i == 0) {
+//				PX4_INFO("   %s", dev_path);
+//			}
+//		} while (i == 0);
 	}
 
 	void px4_show_topics()

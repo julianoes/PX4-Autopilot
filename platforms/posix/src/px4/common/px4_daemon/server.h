@@ -53,6 +53,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <atomic>
 #include <map>
 
 #include "sock_protocol.h"
@@ -74,6 +75,8 @@ public:
 	 * @return 0 if started successfully
 	 */
 	int start();
+
+	void stop();
 
 	struct CmdThreadSpecificData {
 		FILE *thread_stdout; // stdout of this thread
@@ -106,7 +109,7 @@ private:
 	static void *_handle_client(void *arg);
 	static void _cleanup(int fd);
 
-	pthread_t _server_main_pthread;
+	pthread_t _server_main_pthread {};
 
 	std::map<int, pthread_t> _fd_to_thread;
 	pthread_mutex_t _mutex; ///< Protects _fd_to_thread.
@@ -116,6 +119,7 @@ private:
 	int _instance_id; ///< instance ID for running multiple instances of the px4 server
 
 	int _fd;
+	std::atomic<bool> _should_exit {false};
 
 	static void _pthread_key_destructor(void *arg);
 

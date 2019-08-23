@@ -384,21 +384,21 @@ endif()
 #=============================================================================
 # DriverFramework
 #
-px4_add_git_submodule(TARGET git_driverframework PATH "src/lib/DriverFramework")
-set(OS ${PX4_PLATFORM})
-add_subdirectory(src/lib/DriverFramework/framework)
-
-# List the DriverFramework drivers
-if (DEFINED config_df_driver_list)
-	message("DF Drivers: ${config_df_driver_list}")
-endif()
-
-set(df_driver_libs)
-foreach(driver ${config_df_driver_list})
-	add_subdirectory(src/lib/DriverFramework/drivers/${driver})
-	list(APPEND df_driver_libs df_${driver})
-	message("Adding DF driver: ${driver}")
-endforeach()
+#px4_add_git_submodule(TARGET git_driverframework PATH "src/lib/DriverFramework")
+#set(OS ${PX4_PLATFORM})
+##add_subdirectory(src/lib/DriverFramework/framework)
+#
+## List the DriverFramework drivers
+#if (DEFINED config_df_driver_list)
+#	message("DF Drivers: ${config_df_driver_list}")
+#endif()
+#
+#set(df_driver_libs)
+#foreach(driver ${config_df_driver_list})
+#	add_subdirectory(src/lib/DriverFramework/drivers/${driver})
+#	list(APPEND df_driver_libs df_${driver})
+#	message("Adding DF driver: ${driver}")
+#endforeach()
 
 #=============================================================================
 # external projects

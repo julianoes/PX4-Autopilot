@@ -181,7 +181,11 @@ __EXPORT void px4_show_tasks(void);
 /** See if a task is running **/
 __EXPORT bool px4_task_is_running(const char *taskname);
 
+
 #ifdef __PX4_POSIX
+
+void clean_taskmap(void);
+
 /** set process (and thread) options */
 __EXPORT int px4_prctl(int option, const char *arg2, px4_task_t pid);
 #endif

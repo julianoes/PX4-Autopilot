@@ -70,14 +70,14 @@
 #include <px4_posix.h>
 
 #include "apps.h"
-#include "DriverFramework.hpp"
+#include "px4_middleware.h"
+#include "px4_middleware.h"
 #include "px4_daemon/client.h"
 #include "px4_daemon/server.h"
 #include "px4_daemon/pxh.h"
 
 #define MODULE_NAME "px4"
 
-static const char *LOCK_FILE_PATH = "/tmp/px4_lock";
 
 #ifndef PATH_MAX
 #define PATH_MAX 1024
@@ -94,22 +94,61 @@ void init_once();
 
 static void sig_int_handler(int sig_num);
 static void sig_fpe_handler(int sig_num);
-
 static void register_sig_handler();
+
+#if !defined FUZZTESTING
+static const char *LOCK_FILE_PATH = "/tmp/px4_lock";
 static void set_cpu_scaling();
-static int create_dirs();
 static int run_startup_script(const std::string &commands_file, const std::string &absolute_binary_path, int instance);
 static std::string get_absolute_binary_path(const std::string &argv0);
 static void wait_to_exit();
 static bool is_already_running(int instance);
 static void print_usage();
-static bool dir_exists(const std::string &path);
 static bool file_exists(const std::string &name);
 static std::string file_basename(std::string const &pathname);
-static std::string pwd();
 static int change_directory(const std::string &directory);
+static std::string pwd();
+static int create_dirs();
+static bool dir_exists(const std::string &path);
+#endif
 
+#if defined(FUZZTESTING)
 
+//int main(int argc, char **argv)
+//{
+//	(void)argc;
+//	(void)argv;
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+{
+	(void)data;
+	(void)size;
+	register_sig_handler();
+
+	int instance = 0;
+	px4_daemon::Server server(instance);
+	server.start();
+
+	px4::init_once();
+	px4::init(0, nullptr, "px4");
+
+	px4_daemon::Pxh pxh;
+	//pxh.run_pxh();
+
+	pxh.process_line("uorb start", true);
+	pxh.process_line("dataman start", true);
+	pxh.process_line("mavlink start -x -u 14540 -r 4000000", true);
+	pxh.process_line("mavlink stop-all", true);
+	int ret = pxh.process_line("shutdown", true);
+
+	if (ret == pxh.SHUTDOWN_MAGIC) {
+		return 0;
+	}
+
+	return 0;
+}
+
+#else
 int main(int argc, char **argv)
 {
 	bool is_client = false;
@@ -290,36 +329,7 @@ int main(int argc, char **argv)
 
 	return PX4_OK;
 }
-
-
-int create_dirs()
-{
-	std::string current_path = pwd();
-
-	std::vector<std::string> dirs{"log", "eeprom"};
-
-	for (const auto &dir : dirs) {
-		PX4_DEBUG("mkdir: %s", dir.c_str());;
-		std::string dir_path = current_path + "/" + dir;
-
-		if (dir_exists(dir_path)) {
-			continue;
-		}
-
-		// create dirs
-		int ret = mkdir(dir_path.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
-
-		if (ret != OK) {
-			PX4_WARN("failed creating new dir: %s", dir_path.c_str());
-			return ret;
-
-		} else {
-			PX4_DEBUG("Successfully created dir %s", dir_path.c_str());
-		}
-	}
-
-	return PX4_OK;
-}
+#endif // FUZZTESTING
 
 void register_sig_handler()
 {
@@ -367,6 +377,37 @@ void sig_fpe_handler(int sig_num)
 	fflush(stdout);
 	px4_daemon::Pxh::stop();
 	_exit_requested = true;
+}
+
+
+#if !defined(FUZZTESTING)
+int create_dirs()
+{
+	std::string current_path = pwd();
+
+	std::vector<std::string> dirs{"log", "eeprom"};
+
+	for (const auto &dir : dirs) {
+		PX4_DEBUG("mkdir: %s", dir.c_str());;
+		std::string dir_path = current_path + "/" + dir;
+
+		if (dir_exists(dir_path)) {
+			continue;
+		}
+
+		// create dirs
+		int ret = mkdir(dir_path.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+
+		if (ret != OK) {
+			PX4_WARN("failed creating new dir: %s", dir_path.c_str());
+			return ret;
+
+		} else {
+			PX4_DEBUG("Successfully created dir %s", dir_path.c_str());
+		}
+	}
+
+	return PX4_OK;
 }
 
 void set_cpu_scaling()
@@ -586,3 +627,4 @@ int change_directory(const std::string &directory)
 
 	return PX4_OK;
 }
+#endif

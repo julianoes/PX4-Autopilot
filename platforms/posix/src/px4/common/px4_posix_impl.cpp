@@ -51,6 +51,7 @@
 #include "px4_time.h"
 #include <pthread.h>
 #include <px4_init.h>
+#include <px4_tasks.h>
 
 extern pthread_t _shell_task_id;
 
@@ -67,6 +68,8 @@ void init_once();
 
 void init_once()
 {
+	clean_taskmap();
+
 	_shell_task_id = pthread_self();
 	//printf("[init] shell id: %lu\n", (unsigned long)_shell_task_id);
 

@@ -71,6 +71,7 @@ Server::Server(int instance_id)
 
 Server::~Server()
 {
+	stop();
 	_instance = nullptr;
 }
 
@@ -114,6 +115,15 @@ Server::start()
 	return 0;
 }
 
+void Server::stop()
+{
+	_should_exit = true;
+
+	if (_server_main_pthread) {
+		pthread_join(_server_main_pthread, nullptr);
+	}
+}
+
 void *
 Server::_server_main_trampoline(void *self)
 {
@@ -146,8 +156,13 @@ Server::_server_main()
 	// stdouts[i] corresponds to poll_fds[i+1].
 	std::vector<FILE *> stdouts;
 
-	while (true) {
-		int n_ready = poll(poll_fds.data(), poll_fds.size(), -1);
+	while (!_should_exit) {
+		int n_ready = poll(poll_fds.data(), poll_fds.size(), 100);
+
+		if (n_ready == 0) {
+			// Timeout, try again.
+			continue;
+		}
 
 		if (n_ready < 0) {
 			PX4_ERR("poll() failed: %s", strerror(errno));

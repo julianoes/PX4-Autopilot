@@ -71,6 +71,10 @@ int Pxh::process_line(const std::string &line, bool silently_fail)
 		return 0;
 	}
 
+	if (line.compare("shutdown") == 0) {
+		return SHUTDOWN_MAGIC;
+	}
+
 	if (_apps.empty()) {
 		init_app_map(_apps);
 	}
@@ -162,19 +166,25 @@ void Pxh::run_pxh()
 
 			break;
 
-		case '\n':	// user hit enter
-			_history.try_to_add(mystr);
-			_history.reset_to_end();
+		case '\n': {	// user hit enter
+				_history.try_to_add(mystr);
+				_history.reset_to_end();
 
-			printf("\n");
-			process_line(mystr, false);
-			// reset string and cursor position
-			mystr = "";
-			cursor_position = 0;
+				printf("\n");
+				int ret = process_line(mystr, false);
 
-			update_prompt = false;
-			_print_prompt();
-			break;
+				if (ret == SHUTDOWN_MAGIC) {
+					_should_exit = true;
+				}
+
+				// reset string and cursor position
+				mystr = "";
+				cursor_position = 0;
+
+				update_prompt = false;
+				_print_prompt();
+				break;
+			}
 
 		case '\033': {	// arrow keys
 				c = getchar();	// skip first one, does not have the info

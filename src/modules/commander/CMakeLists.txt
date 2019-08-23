@@ -55,7 +55,7 @@ px4_add_module(
 		state_machine_helper.cpp
 	DEPENDS
 		circuit_breaker
-		df_driver_framework
+		#df_driver_framework
 		failure_detector
 		git_ecl
 		ecl_geo

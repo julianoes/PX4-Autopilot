@@ -258,7 +258,7 @@ int WorkQueueManagerStart()
 					 nullptr);
 
 	if (task_id < 0) {
-		PX4_ERR("task start failed (%i)", task_id);
+		PX4_ERR("task start failed (%i) this one but why", task_id);
 		return -errno;
 	}
 

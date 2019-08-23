@@ -76,7 +76,6 @@ struct task_entry {
 };
 
 static task_entry taskmap[PX4_MAX_TASKS] = {};
-
 typedef struct {
 	px4_main_t entry;
 	char name[16]; //pthread_setname_np is restricted to 16 chars
@@ -84,6 +83,11 @@ typedef struct {
 	char *argv[];
 	// strings are allocated after the struct data
 } pthdata_t;
+
+void clean_taskmap()
+{
+	memset(taskmap, 0, sizeof(taskmap));
+}
 
 static void *entry_adapter(void *ptr)
 {
@@ -146,6 +150,7 @@ px4_task_t px4_task_spawn_cmd(const char *name, int scheduler, int priority, int
 	pthdata_t *taskdata = (pthdata_t *)malloc(structsize + len);
 
 	if (taskdata == nullptr) {
+		printf("ENOMEM\n");
 		return -ENOMEM;
 	}
 
@@ -246,6 +251,7 @@ px4_task_t px4_task_spawn_cmd(const char *name, int scheduler, int priority, int
 		pthread_attr_destroy(&attr);
 		pthread_mutex_unlock(&task_mutex);
 		free(taskdata);
+		printf("max_tasks: %d >= %d\n", i, PX4_MAX_TASKS);
 		return -ENOSPC;
 	}
 

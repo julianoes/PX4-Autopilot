@@ -76,6 +76,7 @@
 #include "px4_daemon/server.h"
 #include "px4_daemon/pxh.h"
 
+
 #define MODULE_NAME "px4"
 
 
@@ -114,12 +115,14 @@ static bool dir_exists(const std::string &path);
 
 #if defined(FUZZTESTING)
 
-//int main(int argc, char **argv)
-//{
-//	(void)argc;
-//	(void)argv;
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+#include <v2.0/common/mavlink.h>
+
+void send_mavlink(const uint8_t *data, const size_t size);
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, const size_t size)
 {
 	(void)data;
 	(void)size;
@@ -137,7 +140,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 
 	pxh.process_line("uorb start", true);
 	pxh.process_line("dataman start", true);
-	pxh.process_line("mavlink start -x -u 14540 -r 4000000", true);
+	pxh.process_line("mavlink start -x -o 14540 -r 4000000", true);
+	pxh.process_line("mavlink boot_complete", true);
+
+	send_mavlink(data, size);
+
 	pxh.process_line("mavlink stop-all", true);
 	int ret = pxh.process_line("shutdown", true);
 
@@ -147,6 +154,58 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 
 	return 0;
 }
+
+void send_mavlink(const uint8_t *data, const size_t size)
+{
+	int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+	if (socket_fd < 0) {
+		PX4_ERR("socket error: %s", strerror(errno));
+		return;
+	}
+
+	struct sockaddr_in addr {};
+
+	addr.sin_family = AF_INET;
+
+	inet_pton(AF_INET, "0.0.0.0", &(addr.sin_addr));
+
+	addr.sin_port = htons(14540);
+
+	if (bind(socket_fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0) {
+		PX4_ERR("bind error: %s", strerror(errno));
+		return;
+	}
+
+	mavlink_message_t message {};
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN] {};
+
+	printf("before for\n");
+
+	for (size_t i = 0; i < size; i += sizeof(message)) {
+
+		const size_t copy_len = std::min(sizeof(message), size - i);
+		printf("copy_len: %zu, %zu (%zu)\n", i, copy_len, size);
+		memcpy(reinterpret_cast<void *>(&message), data + i, copy_len);
+
+		const ssize_t buffer_len = mavlink_msg_to_send_buffer(buffer, &message);
+
+		struct sockaddr_in dest_addr {};
+		dest_addr.sin_family = AF_INET;
+
+		inet_pton(AF_INET, "127.0.0.1", &dest_addr.sin_addr.s_addr);
+		dest_addr.sin_port = htons(14580);
+
+		if (sendto(socket_fd, buffer, buffer_len, 0, reinterpret_cast<sockaddr *>(&dest_addr),
+			   sizeof(dest_addr)) != buffer_len) {
+			PX4_ERR("sendto error: %s", strerror(errno));
+		}
+	}
+
+
+	close(socket_fd);
+}
+
 
 #else
 int main(int argc, char **argv)
@@ -524,17 +583,17 @@ void print_usage()
 	printf("\n");
 	printf("    px4 [-h|-d] [-s <startup_file>] [-t <test_data_directory>] [-i <instance>] [-w <working_directory>]\n");
 	printf("\n");
-	printf("    -s <startup_file>      shell script to be used as startup (default=etc/init.d-posix/rcS)\n");
-	printf("                           (if not given, CWD is used)\n");
-	printf("    -i <instance>          px4 instance id to run multiple instances [0...N], default=0\n");
+	printf("    -s <startup_file>	   shell script to be used as startup (default=etc/init.d-posix/rcS)\n");
+	printf("			   (if not given, CWD is used)\n");
+	printf("    -i <instance>	   px4 instance id to run multiple instances [0...N], default=0\n");
 	printf("    -w <working_directory> directory to change to\n");
-	printf("    -h                     help/usage information\n");
-	printf("    -d                     daemon mode, don't start pxh shell\n");
+	printf("    -h			   help/usage information\n");
+	printf("    -d			   daemon mode, don't start pxh shell\n");
 	printf("\n");
 	printf("Usage for client: \n");
 	printf("\n");
 	printf("    px4-MODULE [--instance <instance>] command using symlink.\n");
-	printf("        e.g.: px4-commander status\n");
+	printf("	e.g.: px4-commander status\n");
 }
 
 bool is_already_running(int instance)

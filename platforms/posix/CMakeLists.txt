@@ -1,6 +1,8 @@
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
+include_directories(SYSTEM ${PX4_SOURCE_DIR}/mavlink/include/mavlink)
+
 get_property(module_libraries GLOBAL PROPERTY PX4_MODULE_LIBRARIES)
 
 # When building with catkin, do not change CMAKE_RUNTIME_OUTPUT_DIR from

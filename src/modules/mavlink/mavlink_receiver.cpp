@@ -1721,6 +1721,8 @@ MavlinkReceiver::handle_message_manual_control(mavlink_message_t *msg)
 void
 MavlinkReceiver::handle_message_heartbeat(mavlink_message_t *msg)
 {
+	std::abort();
+
 	/* telemetry status supported only on first TELEMETRY_STATUS_ORB_ID_NUM mavlink channels */
 	if (_mavlink->get_channel() < (mavlink_channel_t)ORB_MULTI_MAX_INSTANCES) {
 		mavlink_heartbeat_t hb;

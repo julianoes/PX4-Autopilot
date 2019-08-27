@@ -136,13 +136,13 @@ elseif (CMAKE_BUILD_TYPE STREQUAL FuzzTesting)
 
 	add_compile_options(
 		-g3
-		-fsanitize=fuzzer
+		-fsanitize=fuzzer,address,undefined
 		-DFUZZTESTING
 	)
 
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=fuzzer" CACHE INTERNAL "" FORCE)
-	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=fuzzer" CACHE INTERNAL "" FORCE)
-	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=fuzzer" CACHE INTERNAL "" FORCE)
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=fuzzer,address,undefined" CACHE INTERNAL "" FORCE)
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=fuzzer,address,undefined" CACHE INTERNAL "" FORCE)
+	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=fuzzer,address,undefined" CACHE INTERNAL "" FORCE)
 
 	function(sanitizer_fail_test_on_error test_name)
 		# Not sure what to do here

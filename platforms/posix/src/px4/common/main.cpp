@@ -128,29 +128,36 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, const size_t size)
 	(void)size;
 	register_sig_handler();
 
-	int instance = 0;
-	px4_daemon::Server server(instance);
-	server.start();
+	//int instance = 0;
+	//px4_daemon::Server server(instance);
+	//server.start();
 
-	px4::init_once();
-	px4::init(0, nullptr, "px4");
+	static bool first_time = true;
 
-	px4_daemon::Pxh pxh;
-	//pxh.run_pxh();
+	if (first_time) {
+		first_time = false;
 
-	pxh.process_line("uorb start", true);
-	pxh.process_line("dataman start", true);
-	pxh.process_line("mavlink start -x -o 14540 -r 4000000", true);
-	pxh.process_line("mavlink boot_complete", true);
+		px4::init_once();
+		px4::init(0, nullptr, "px4");
+
+		px4_daemon::Pxh pxh;
+		//pxh.run_pxh();
+
+		pxh.process_line("uorb start", true);
+		pxh.process_line("dataman start", true);
+		pxh.process_line("mavlink start -x -o 14540 -r 4000000", true);
+		pxh.process_line("mavlink boot_complete", true);
+	}
+
 
 	send_mavlink(data, size);
 
-	pxh.process_line("mavlink stop-all", true);
-	int ret = pxh.process_line("shutdown", true);
+	//pxh.process_line("mavlink stop-all", true);
+	//int ret = pxh.process_line("shutdown", true);
 
-	if (ret == pxh.SHUTDOWN_MAGIC) {
-		return 0;
-	}
+	//if (ret == pxh.SHUTDOWN_MAGIC) {
+	//	return 0;
+	//}
 
 	return 0;
 }
@@ -174,18 +181,17 @@ void send_mavlink(const uint8_t *data, const size_t size)
 
 	if (bind(socket_fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0) {
 		PX4_ERR("bind error: %s", strerror(errno));
+		close(socket_fd);
 		return;
 	}
 
 	mavlink_message_t message {};
 	uint8_t buffer[MAVLINK_MAX_PACKET_LEN] {};
 
-	printf("before for\n");
-
 	for (size_t i = 0; i < size; i += sizeof(message)) {
 
 		const size_t copy_len = std::min(sizeof(message), size - i);
-		printf("copy_len: %zu, %zu (%zu)\n", i, copy_len, size);
+		//printf("copy_len: %zu, %zu (%zu)\n", i, copy_len, size);
 		memcpy(reinterpret_cast<void *>(&message), data + i, copy_len);
 
 		const ssize_t buffer_len = mavlink_msg_to_send_buffer(buffer, &message);
@@ -194,7 +200,7 @@ void send_mavlink(const uint8_t *data, const size_t size)
 		dest_addr.sin_family = AF_INET;
 
 		inet_pton(AF_INET, "127.0.0.1", &dest_addr.sin_addr.s_addr);
-		dest_addr.sin_port = htons(14580);
+		dest_addr.sin_port = htons(14556);
 
 		if (sendto(socket_fd, buffer, buffer_len, 0, reinterpret_cast<sockaddr *>(&dest_addr),
 			   sizeof(dest_addr)) != buffer_len) {

@@ -70,7 +70,7 @@ pthread_mutex_t task_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct task_entry {
 	pthread_t pid;
-	std::string name;
+	char name[16];
 	bool isused;
 	task_entry() : isused(false) {}
 };
@@ -240,7 +240,8 @@ px4_task_t px4_task_spawn_cmd(const char *name, int scheduler, int priority, int
 
 	for (i = 0; i < PX4_MAX_TASKS; ++i) {
 		if (!taskmap[i].isused) {
-			taskmap[i].name = name;
+			strncpy(taskmap[i].name, name, sizeof(taskmap[i].name));
+			taskmap[i].name[15] = '\0';
 			taskmap[i].isused = true;
 			taskid = i;
 			break;
@@ -336,7 +337,7 @@ void px4_task_exit(int ret)
 		PX4_ERR("px4_task_exit: self task not found!");
 
 	} else {
-		PX4_DEBUG("px4_task_exit: %s", taskmap[i].name.c_str());
+		PX4_DEBUG("px4_task_exit: %s", taskmap[i].name);
 	}
 
 	pthread_mutex_unlock(&task_mutex);
@@ -374,7 +375,7 @@ void px4_show_tasks()
 
 	for (idx = 0; idx < PX4_MAX_TASKS; idx++) {
 		if (taskmap[idx].isused) {
-			PX4_INFO("   %-10s %lu", taskmap[idx].name.c_str(), (unsigned long)taskmap[idx].pid);
+			PX4_INFO("   %-10s %lu", taskmap[idx].name, (unsigned long)taskmap[idx].pid);
 			count++;
 		}
 	}
@@ -390,7 +391,7 @@ bool px4_task_is_running(const char *taskname)
 	int idx;
 
 	for (idx = 0; idx < PX4_MAX_TASKS; idx++) {
-		if (taskmap[idx].isused && (strcmp(taskmap[idx].name.c_str(), taskname) == 0)) {
+		if (taskmap[idx].isused && (strcmp(taskmap[idx].name, taskname) == 0)) {
 			return true;
 		}
 	}
@@ -424,7 +425,7 @@ const char *px4_get_taskname()
 
 	for (int i = 0; i < PX4_MAX_TASKS; i++) {
 		if (taskmap[i].isused && taskmap[i].pid == pid) {
-			prog_name = taskmap[i].name.c_str();
+			prog_name = taskmap[i].name;
 		}
 	}
 

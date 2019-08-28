@@ -366,15 +366,16 @@ Mavlink::destroy_all_instances()
 		inst_to_del->_task_should_exit = true;
 
 		while (inst_to_del->_task_running) {
-			printf(".");
-			fflush(stdout);
-			px4_usleep(10000);
 			iterations++;
 
 			if (iterations > 1000) {
 				PX4_ERR("Couldn't stop all mavlink instances.");
 				return PX4_ERROR;
 			}
+
+			printf(".");
+			fflush(stdout);
+			px4_usleep(1000);
 		}
 
 	}

@@ -44,6 +44,8 @@ namespace sensors
 
 void initialize_parameter_handles(ParameterHandles &parameter_handles)
 {
+	printf("initializing params!\n");
+
 	/* basic r/c parameters */
 	for (unsigned i = 0; i < RC_MAX_CHAN_COUNT; i++) {
 		char nbuf[16];
@@ -141,6 +143,7 @@ void initialize_parameter_handles(ParameterHandles &parameter_handles)
 #endif /* ADC_AIRSPEED_VOLTAGE_CHANNEL */
 
 	parameter_handles.battery_voltage_scaling = param_find("BAT_CNT_V_VOLT");
+	printf("found: %x\n", parameter_handles.battery_voltage_scaling);
 	parameter_handles.battery_current_scaling = param_find("BAT_CNT_V_CURR");
 	parameter_handles.battery_current_offset = param_find("BAT_V_OFFS_CURR");
 	parameter_handles.battery_v_div = param_find("BAT_V_DIV");

@@ -692,16 +692,24 @@ param_set_internal(param_t param, const void *val, bool mark_saved, bool notify_
 	perf_begin(param_set_perf);
 
 	if (param_values == nullptr) {
+		printf("creating a new utarray\n");
 		utarray_new(param_values, &param_icd);
 	}
+
+	printf("0x%lx", (long)(void *)param_values->d);
 
 	if (param_values == nullptr) {
 		PX4_ERR("failed to allocate modified values array");
 		goto out;
 	}
 
+	if (param_values->d == nullptr) {
+		goto out;
+	}
+
 	if (handle_in_range(param)) {
 
+		printf("first param_find_changed\n");
 		param_wbuf_s *s = param_find_changed(param);
 
 		if (s == nullptr) {
@@ -716,6 +724,7 @@ param_set_internal(param_t param, const void *val, bool mark_saved, bool notify_
 			utarray_push_back(param_values, &buf);
 			utarray_sort(param_values, param_compare_values);
 
+			printf("second param_find_changed\n");
 			/* find it after sorting */
 			s = param_find_changed(param);
 		}

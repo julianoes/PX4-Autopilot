@@ -144,7 +144,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, const size_t size)
 		//pxh.run_pxh();
 
 		pxh.process_line("uorb start", true);
+		pxh.process_line("param load", true);
 		pxh.process_line("dataman start", true);
+		pxh.process_line("tone_alarm start", true);
+		pxh.process_line("gpssim start", true);
+		pxh.process_line("sensors start", true);
+		pxh.process_line("commander start", true);
+		pxh.process_line("navigator start", true);
+		pxh.process_line("ekf2 start", true);
+		pxh.process_line("mc_att_control start", true);
+		pxh.process_line("mc_pos_control start", true);
+		pxh.process_line("land_detector start multicopter", true);
+		pxh.process_line("logger start", true);
 		pxh.process_line("mavlink start -x -o 14540 -r 4000000", true);
 		pxh.process_line("mavlink boot_complete", true);
 	}

@@ -70,8 +70,6 @@
 #include <px4_posix.h>
 
 #include "apps.h"
-#include "px4_middleware.h"
-#include "px4_middleware.h"
 #include "px4_daemon/client.h"
 #include "px4_daemon/server.h"
 #include "px4_daemon/pxh.h"

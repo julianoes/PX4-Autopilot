@@ -106,7 +106,7 @@ bool MavlinkFtpTest::_ack_test()
 	return true;
 }
 
-/// @brief Tests for correct response to an invalid opcpde.
+/// @brief Tests for correct response to an invalid opcode.
 bool MavlinkFtpTest::_bad_opcode_test()
 {
 	MavlinkFTP::PayloadHeader		payload;
@@ -290,8 +290,8 @@ bool MavlinkFtpTest::_open_badfile_test()
 	}
 
 	ut_compare("Didn't get Nak back", reply->opcode, MavlinkFTP::kRspNak);
-	ut_compare("Incorrect payload size", reply->size, 2);
-	ut_compare("Incorrect error code", reply->data[0], MavlinkFTP::kErrFailErrno);
+	ut_compare("Incorrect payload size", reply->size, 1);
+	ut_compare("Incorrect error code", reply->data[0], MavlinkFTP::kErrFileNotFound);
 
 	return true;
 }
@@ -647,13 +647,19 @@ bool MavlinkFtpTest::_removedirectory_test()
 		const char	*dir;
 		bool		success;
 		bool		deleteFile;
+		uint8_t		reply_size;
+		uint8_t		error_code;
 	};
 	static const struct _testCase rgTestCases[] = {
-		{ "/bogus",						false,	false },
-		{ PX4_MAVLINK_TEST_DATA_DIR "/unit_test_data/mavlink_tests/empty_dir",	false,	false },
-		{ _unittest_microsd_dir,				false,	false },
-		{ _unittest_microsd_file,				false,	false },
-		{ _unittest_microsd_dir,				true,	true },
+		{ "/bogus",						false,	false, 1, MavlinkFTP::kErrFileNotFound },
+#ifdef __PX4_NUTTX
+		{ PX4_MAVLINK_TEST_DATA_DIR "/unit_test_data/mavlink_tests/empty_dir",	false,	false, 2, MavlinkFTP::kErrFailErrno },
+#else
+		{ PX4_MAVLINK_TEST_DATA_DIR "/unit_test_data/mavlink_tests/empty_dir",	false,	false, 1, MavlinkFTP::kErrFileNotFound },
+#endif /* __PX4_NUTTX */
+		{ _unittest_microsd_dir,				false,	false, 2, MavlinkFTP::kErrFailErrno },
+		{ _unittest_microsd_file,				false,	false, 2, MavlinkFTP::kErrFailErrno },
+		{ _unittest_microsd_dir,				true,	true, 0, MavlinkFTP::kErrNone },
 	};
 
 	ut_compare("mkdir failed", ::mkdir(_unittest_microsd_dir, S_IRWXU | S_IRWXG | S_IRWXO), 0);
@@ -681,12 +687,12 @@ bool MavlinkFtpTest::_removedirectory_test()
 
 		if (test->success) {
 			ut_compare("Didn't get Ack back", reply->opcode, MavlinkFTP::kRspAck);
-			ut_compare("Incorrect payload size", reply->size, 0);
+			ut_compare("Incorrect payload size", reply->size, test->reply_size);
 
 		} else {
 			ut_compare("Didn't get Nak back", reply->opcode, MavlinkFTP::kRspNak);
-			ut_compare("Incorrect payload size", reply->size, 2);
-			ut_compare("Incorrect error code", reply->data[0], MavlinkFTP::kErrFailErrno);
+			ut_compare("Incorrect payload size", reply->size, test->reply_size);
+			ut_compare("Incorrect error code", reply->data[0], test->error_code);
 		}
 	}
 
@@ -753,20 +759,22 @@ bool MavlinkFtpTest::_removefile_test()
 	struct _testCase {
 		const char	*file;
 		bool		success;
+		uint8_t		reply_size;
+		uint8_t		error_code;
 	};
 	static const struct _testCase rgTestCases[] = {
-		{ "/bogus",			false },
+		{ "/bogus",			false, 1, MavlinkFTP::kErrFileNotFound },
 #ifdef __PX4_NUTTX
 		// file can actually be deleted on linux
-		{ _rgDownloadTestCases[0].file,	false },
+		{ _rgDownloadTestCases[0].file,	false, 2, MavlinkFTP::kErrFailErrno },
 #endif /* __PX4_NUTTX */
-		{ _unittest_microsd_dir,	false },
-		{ _unittest_microsd_file,	true },
-		{ _unittest_microsd_file,	false },
+		{ _unittest_microsd_dir,	false, 2, MavlinkFTP::kErrFailErrno },
+		{ _unittest_microsd_file,	true,  0, MavlinkFTP::kErrNone },
+		{ _unittest_microsd_file,	false, 1, MavlinkFTP::kErrFileNotFound },
 	};
 
 	ut_compare("mkdir failed", ::mkdir(_unittest_microsd_dir, S_IRWXU | S_IRWXG | S_IRWXO), 0);
-	ut_assert("open failed", (fd = ::open(_unittest_microsd_file, O_CREAT | O_EXCL, S_IRWXU | S_IRWXG | S_IRWXO)) != -1);
+	ut_assert("open failed", (fd = ::open(_unittest_microsd_file, O_CREAT | O_EXCL, S_IRWXU | S_IRWXG | S_IRWXO)) != 0);
 	::close(fd);
 
 	for (size_t i = 0; i < sizeof(rgTestCases) / sizeof(rgTestCases[0]); i++) {
@@ -786,12 +794,12 @@ bool MavlinkFtpTest::_removefile_test()
 
 		if (test->success) {
 			ut_compare("Didn't get Ack back", reply->opcode, MavlinkFTP::kRspAck);
-			ut_compare("Incorrect payload size", reply->size, 0);
+			ut_compare("Incorrect payload size", reply->size, test->reply_size);
 
 		} else {
 			ut_compare("Didn't get Nak back", reply->opcode, MavlinkFTP::kRspNak);
-			ut_compare("Incorrect payload size", reply->size, 2);
-			ut_compare("Incorrect error code", reply->data[0], MavlinkFTP::kErrFailErrno);
+			ut_compare("Incorrect payload size", reply->size, test->reply_size);
+			ut_compare("Incorrect error code", reply->data[0], test->error_code);
 		}
 	}
 

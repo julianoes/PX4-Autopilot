@@ -774,7 +774,7 @@ bool MavlinkFtpTest::_removefile_test()
 	};
 
 	ut_compare("mkdir failed", ::mkdir(_unittest_microsd_dir, S_IRWXU | S_IRWXG | S_IRWXO), 0);
-	ut_assert("open failed", (fd = ::open(_unittest_microsd_file, O_CREAT | O_EXCL, S_IRWXU | S_IRWXG | S_IRWXO)) != 0);
+	ut_assert("open failed", (fd = ::open(_unittest_microsd_file, O_CREAT | O_EXCL, S_IRWXU | S_IRWXG | S_IRWXO)) != -1);
 	::close(fd);
 
 	for (size_t i = 0; i < sizeof(rgTestCases) / sizeof(rgTestCases[0]); i++) {

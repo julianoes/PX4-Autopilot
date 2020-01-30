@@ -269,6 +269,7 @@ out:
 
 		if (r_errno == EEXIST) {
 			errorCode = kErrFailFileExists;
+
 		} else if (r_errno == ENOENT && errorCode == kErrFailErrno) {
 			errorCode = kErrFileNotFound;
 		}

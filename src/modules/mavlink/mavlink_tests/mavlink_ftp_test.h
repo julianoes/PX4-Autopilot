@@ -76,6 +76,8 @@ private:
 	virtual void _init(void);
 	virtual void _cleanup(void);
 
+	bool _create_test_files(void);
+	bool _remove_test_files(void);
 	bool _ack_test(void);
 	bool _bad_opcode_test(void);
 	bool _bad_datasize_test(void);

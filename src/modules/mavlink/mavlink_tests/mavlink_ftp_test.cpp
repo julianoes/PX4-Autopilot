@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (C) 2014 PX4 Development Team. All rights reserved.
+ *   Copyright (C) 2014-2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,16 +43,21 @@
 #include "../mavlink_ftp.h"
 
 #ifdef __PX4_NUTTX
-#define PX4_MAVLINK_TEST_DATA_DIR "/etc"
+#define PX4_MAVLINK_TEST_DATA_DIR "/fs/microsd"
 #else
-#define PX4_MAVLINK_TEST_DATA_DIR "etc"
+#define PX4_MAVLINK_TEST_DATA_DIR "unit_test_data"
 #endif
 
-/// @brief Test case file name for Read command. File are generated using mavlink_ftp_test_data.py
+static const char *_test_files[] = {
+	PX4_MAVLINK_TEST_DATA_DIR  "/" "test_238.data",
+	PX4_MAVLINK_TEST_DATA_DIR  "/" "test_239.data",
+	PX4_MAVLINK_TEST_DATA_DIR  "/" "test_240.data"
+};
+
 const MavlinkFtpTest::DownloadTestCase MavlinkFtpTest::_rgDownloadTestCases[] = {
-	{ PX4_MAVLINK_TEST_DATA_DIR  "/unit_test_data/mavlink_tests/test_238.data",	MAVLINK_MSG_FILE_TRANSFER_PROTOCOL_FIELD_PAYLOAD_LEN - sizeof(MavlinkFTP::PayloadHeader) - 1,	true, false },	// Read takes less than single packet
-	{ PX4_MAVLINK_TEST_DATA_DIR  "/unit_test_data/mavlink_tests/test_239.data",	MAVLINK_MSG_FILE_TRANSFER_PROTOCOL_FIELD_PAYLOAD_LEN - sizeof(MavlinkFTP::PayloadHeader),	true, true },	// Read completely fills single packet
-	{ PX4_MAVLINK_TEST_DATA_DIR  "/unit_test_data/mavlink_tests/test_240.data",	MAVLINK_MSG_FILE_TRANSFER_PROTOCOL_FIELD_PAYLOAD_LEN - sizeof(MavlinkFTP::PayloadHeader) + 1,	false, false },	// Read take two packets
+	{ _test_files[0], MAVLINK_MSG_FILE_TRANSFER_PROTOCOL_FIELD_PAYLOAD_LEN - sizeof(MavlinkFTP::PayloadHeader) - 1,	true, false },	// Read takes less than single packet
+	{ _test_files[1], MAVLINK_MSG_FILE_TRANSFER_PROTOCOL_FIELD_PAYLOAD_LEN - sizeof(MavlinkFTP::PayloadHeader),	true, true },	// Read completely fills single packet
+	{ _test_files[2], MAVLINK_MSG_FILE_TRANSFER_PROTOCOL_FIELD_PAYLOAD_LEN - sizeof(MavlinkFTP::PayloadHeader) + 1,	false, false },	// Read take two packets
 };
 
 const char MavlinkFtpTest::_unittest_microsd_dir[] = PX4_STORAGEDIR "/ftp_unit_test_dir";
@@ -72,7 +77,46 @@ void MavlinkFtpTest::_init()
 	_ftp_server = new MavlinkFTP(nullptr);
 	_ftp_server->set_unittest_worker(MavlinkFtpTest::receive_message_handler_generic, this);
 
+	_create_test_files();
+
 	_cleanup_microsd();
+}
+
+bool MavlinkFtpTest::_create_test_files()
+{
+	int ret = ::mkdir(PX4_MAVLINK_TEST_DATA_DIR, S_IRWXU | S_IRWXG | S_IRWXO);
+	ut_assert("mkdir failed", ret == 0 || errno == EEXIST);
+
+	ret = ::mkdir(PX4_MAVLINK_TEST_DATA_DIR "/empty_dir", S_IRWXU | S_IRWXG | S_IRWXO);
+	ut_assert("mkdir failed", ret == 0 || errno == EEXIST);
+
+	bool failed = false;
+
+	for (int i = 0; i < 3; ++i) {
+		int fd = ::open(_test_files[i], O_CREAT | O_EXCL | O_WRONLY, S_IRWXU | S_IRWXG | S_IRWXO);
+
+		if (fd < 0) {
+			printf("fd: %d, error: %s\n", fd, strerror(errno));
+			ut_assert("Open failed", fd != -1);
+		}
+
+		// We create 3 files, with bytes counting from 0 to 238, 239, and 240.
+		uint8_t len = 238 + i;
+
+		for (uint8_t c = 0; c < len; ++c) {
+			ret = ::write(fd, &c, 1);
+
+			if (ret != 1) {
+				failed = true;
+			}
+		}
+
+		close(fd);
+	}
+
+	ut_assert("Could not write test file", !failed);
+
+	return !failed;
 }
 
 /// @brief Called after every test to take down the FTP Server.
@@ -81,7 +125,21 @@ void MavlinkFtpTest::_cleanup()
 	delete _ftp_server;
 
 	_cleanup_microsd();
+	_remove_test_files();
 }
+
+bool MavlinkFtpTest::_remove_test_files()
+{
+	for (int i = 0; i < 3; ++i) {
+		::unlink(_test_files[i]);
+	}
+
+	::rmdir(PX4_MAVLINK_TEST_DATA_DIR "/empty_dir");
+	::rmdir(PX4_MAVLINK_TEST_DATA_DIR);
+
+	return true;
+}
+
 
 /// @brief Tests for correct behavior of an Ack response.
 bool MavlinkFtpTest::_ack_test()
@@ -163,7 +221,7 @@ bool MavlinkFtpTest::_list_test()
 	MavlinkFTP::PayloadHeader		payload;
 	const MavlinkFTP::PayloadHeader		*reply;
 
-	char response1[] = "Dempty_dir|Ftest_238.data\t238|Ftest_239.data\t239|Ftest_240.data\t240";
+	char response1[] = "Dempty_dir|Ftest_238.data\t238|Ftest_239.data\t239|Ftest_240.data\t240|S|S";
 #ifdef __PX4_NUTTX
 	// expected directory layout only valid on nuttx
 	char response2[] = "Ddev|Detc|Dfs|Dobj";
@@ -177,10 +235,10 @@ bool MavlinkFtpTest::_list_test()
 	};
 	struct _testCase rgTestCases[] = {
 		{ "/bogus",				nullptr,	0,	false },
-		{ PX4_MAVLINK_TEST_DATA_DIR  "/unit_test_data/mavlink_tests",	response1,	4,	true },
+		{ PX4_MAVLINK_TEST_DATA_DIR,	response1,	6,	true },   // 4 plus 2 for . and .. (skipped)
 #ifdef __PX4_NUTTX
 		// expected directory layout only valid on nuttx
-		{ "/",					response2,	4,	true },
+		{ "/",					response2,	6,	true }, // 4 plus 2 for . and .. (skipped)
 #endif /* __PX4_NUTTX */
 	};
 
@@ -235,8 +293,8 @@ bool MavlinkFtpTest::_list_test()
 
 		} else {
 			ut_compare("Didn't get Nak back", reply->opcode, MavlinkFTP::kRspNak);
-			ut_compare("Incorrect payload size", reply->size, 2);
-			ut_compare("Incorrect error code", reply->data[0], MavlinkFTP::kErrFailErrno);
+			ut_compare("Incorrect error code", reply->data[0], MavlinkFTP::kErrFileNotFound);
+			ut_compare("Incorrect payload size", reply->size, 1);
 		}
 	}
 
@@ -249,10 +307,10 @@ bool MavlinkFtpTest::_list_eof_test()
 {
 	MavlinkFTP::PayloadHeader		payload;
 	const MavlinkFTP::PayloadHeader		*reply;
-	const char				*dir = "/";
+	const char				*dir = PX4_MAVLINK_TEST_DATA_DIR;
 
 	payload.opcode = MavlinkFTP::kCmdListDirectory;
-	payload.offset = 4;	// offset past top level dirs
+	payload.offset = 7;	// offset past top level dir (3 test files, 1 test folder, two skipped ./..)
 
 	bool success = _send_receive_msg(&payload,	// FTP payload header
 					 strlen(dir) + 1,	// size in bytes of data
@@ -652,11 +710,6 @@ bool MavlinkFtpTest::_removedirectory_test()
 	};
 	static const struct _testCase rgTestCases[] = {
 		{ "/bogus",						false,	false, 1, MavlinkFTP::kErrFileNotFound },
-#ifdef __PX4_NUTTX
-		{ PX4_MAVLINK_TEST_DATA_DIR "/unit_test_data/mavlink_tests/empty_dir",	false,	false, 2, MavlinkFTP::kErrFailErrno },
-#else
-		{ PX4_MAVLINK_TEST_DATA_DIR "/unit_test_data/mavlink_tests/empty_dir",	false,	false, 1, MavlinkFTP::kErrFileNotFound },
-#endif /* __PX4_NUTTX */
 		{ _unittest_microsd_dir,				false,	false, 2, MavlinkFTP::kErrFailErrno },
 		{ _unittest_microsd_file,				false,	false, 2, MavlinkFTP::kErrFailErrno },
 		{ _unittest_microsd_dir,				true,	true, 0, MavlinkFTP::kErrNone },
@@ -707,13 +760,18 @@ bool MavlinkFtpTest::_createdirectory_test()
 	struct _testCase {
 		const char	*dir;
 		bool		success;
-		bool		fail_exists;
+		uint8_t		reply_size;
+		uint8_t		error_code;
 	};
 	static const struct _testCase rgTestCases[] = {
-		{ "/etc/bogus",			false, false },
-		{ _unittest_microsd_dir,	true, false },
-		{ _unittest_microsd_dir,	false, true },
-		{ "/fs/microsd/bogus/bogus",	false, false },
+		{ "/etc/bogus",			false,	2, MavlinkFTP::kErrFailErrno},
+		{ _unittest_microsd_dir,	true,	0, MavlinkFTP::kErrNone},
+		{ _unittest_microsd_dir,	false,	1, MavlinkFTP::kErrFailFileExists},
+#ifdef __PX4_NUTTX
+		{ "/fs/microsd/bogus/bogus",	false,	2, MavlinkFTP::kErrFailErrno} // on NuttX missing folders is EIO
+#else
+		{ "/fs/microsd/bogus/bogus",	false,	1, MavlinkFTP::kErrFileNotFound} // on Linux it is ENOENT
+#endif
 	};
 
 	for (size_t i = 0; i < sizeof(rgTestCases) / sizeof(rgTestCases[0]); i++) {
@@ -733,17 +791,12 @@ bool MavlinkFtpTest::_createdirectory_test()
 
 		if (test->success) {
 			ut_compare("Didn't get Ack back", reply->opcode, MavlinkFTP::kRspAck);
-			ut_compare("Incorrect payload size", reply->size, 0);
-
-		} else if (test->fail_exists) {
-			ut_compare("Didn't get Nak back", reply->opcode, MavlinkFTP::kRspNak);
-			ut_compare("Incorrect payload size", reply->size, 1);
-			ut_compare("Incorrect error code", reply->data[0], MavlinkFTP::kErrFailFileExists);
+			ut_compare("Incorrect payload size", reply->size, test->reply_size);
 
 		} else {
 			ut_compare("Didn't get Nak back", reply->opcode, MavlinkFTP::kRspNak);
-			ut_compare("Incorrect payload size", reply->size, 2);
-			ut_compare("Incorrect error code", reply->data[0], MavlinkFTP::kErrFailErrno);
+			ut_compare("Incorrect payload size", reply->size, test->reply_size);
+			ut_compare("Incorrect error code", reply->data[0], test->error_code);
 		}
 	}
 
@@ -764,10 +817,6 @@ bool MavlinkFtpTest::_removefile_test()
 	};
 	static const struct _testCase rgTestCases[] = {
 		{ "/bogus",			false, 1, MavlinkFTP::kErrFileNotFound },
-#ifdef __PX4_NUTTX
-		// file can actually be deleted on linux
-		{ _rgDownloadTestCases[0].file,	false, 2, MavlinkFTP::kErrFailErrno },
-#endif /* __PX4_NUTTX */
 		{ _unittest_microsd_dir,	false, 2, MavlinkFTP::kErrFailErrno },
 		{ _unittest_microsd_file,	true,  0, MavlinkFTP::kErrNone },
 		{ _unittest_microsd_file,	false, 1, MavlinkFTP::kErrFileNotFound },
@@ -958,13 +1007,8 @@ bool MavlinkFtpTest::run_tests()
 	ut_run_test(_ack_test);
 	ut_run_test(_bad_opcode_test);
 	ut_run_test(_bad_datasize_test);
-
-	// TODO FIX: Incorrect payload size - (reply->size:1) (2:2) (../src/modules/mavlink/mavlink_tests/mavlink_ftp_test.cpp:243)
-	//ut_run_test(_list_test);
-
-	// TODO FIX: Didn't get Nak back - (reply->opcode:128) (MavlinkFTP::kRspNak:129) (../src/modules/mavlink/mavlink_tests/mavlink_ftp_test.cpp:271)
-	//ut_run_test(_list_eof_test);
-
+	ut_run_test(_list_test);
+	ut_run_test(_list_eof_test);
 	ut_run_test(_open_badfile_test);
 	ut_run_test(_open_terminate_test);
 	ut_run_test(_terminate_badsession_test);
@@ -972,9 +1016,7 @@ bool MavlinkFtpTest::run_tests()
 	ut_run_test(_read_badsession_test);
 	ut_run_test(_burst_test);
 	ut_run_test(_removedirectory_test);
-
-	// TODO FIX: Didn't get Nak back - (reply->opcode:128) (MavlinkFTP::kRspNak:129) (../../src/modules/mavlink/mavlink_tests/mavlink_ftp_test.cpp:730)
-	//ut_run_test(_createdirectory_test);
+	ut_run_test(_createdirectory_test);
 	ut_run_test(_removefile_test);
 
 	return (_tests_failed == 0);

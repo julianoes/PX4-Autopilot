@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020-2021 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -73,7 +73,6 @@ bool FlightModeManager::init()
 
 	// limit to every other vehicle_local_position update (50 Hz)
 	_vehicle_local_position_sub.set_interval_us(20_ms);
-	_time_stamp_last_loop = hrt_absolute_time();
 	return true;
 }
 
@@ -99,11 +98,6 @@ void FlightModeManager::Run()
 	vehicle_local_position_s vehicle_local_position;
 
 	if (_vehicle_local_position_sub.update(&vehicle_local_position)) {
-		const hrt_abstime time_stamp_now = hrt_absolute_time();
-		// Guard against too small (< 0.2ms) and too large (> 100ms) dt's.
-		const float dt = math::constrain(((time_stamp_now - _time_stamp_last_loop) / 1e6f), 0.0002f, 0.1f);
-		_time_stamp_last_loop = time_stamp_now;
-
 		_home_position_sub.update();
 		_vehicle_control_mode_sub.update();
 		_vehicle_land_detected_sub.update();
@@ -142,7 +136,7 @@ void FlightModeManager::Run()
 		}
 
 		if (isAnyTaskActive()) {
-			generateTrajectorySetpoint(dt, vehicle_local_position);
+			generateTrajectorySetpoint(vehicle_local_position);
 		}
 
 	}
@@ -447,8 +441,7 @@ void FlightModeManager::handleCommand()
 	}
 }
 
-void FlightModeManager::generateTrajectorySetpoint(const float dt,
-		const vehicle_local_position_s &vehicle_local_position)
+void FlightModeManager::generateTrajectorySetpoint(const vehicle_local_position_s &vehicle_local_position)
 {
 	_current_task.task->setYawHandler(_wv_controller);
 

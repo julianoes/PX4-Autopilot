@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020-2021 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -91,7 +91,7 @@ private:
 	void check_failure(bool task_failure, uint8_t nav_state);
 	void send_vehicle_cmd_do(uint8_t nav_state);
 	void handleCommand();
-	void generateTrajectorySetpoint(const float dt, const vehicle_local_position_s &vehicle_local_position);
+	void generateTrajectorySetpoint(const vehicle_local_position_s &vehicle_local_position);
 	void limitAltitude(vehicle_local_position_setpoint_s &setpoint, const vehicle_local_position_s &vehicle_local_position);
 
 	/**
@@ -137,7 +137,6 @@ private:
 	uint8_t _last_vehicle_nav_state{0};
 
 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")}; ///< loop duration performance counter
-	hrt_abstime _time_stamp_last_loop{0}; ///< time stamp of last loop iteration
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 

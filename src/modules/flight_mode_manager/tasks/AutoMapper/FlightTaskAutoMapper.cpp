@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /**
- * @file FlightAutoMapper.cpp
+ * @file FlightTaskAutoMapper.cpp
  */
 
 #include "FlightTaskAutoMapper.hpp"

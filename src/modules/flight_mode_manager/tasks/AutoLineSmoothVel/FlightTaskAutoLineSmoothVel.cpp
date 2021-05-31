@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /**
- * @file FlightAutoLine.cpp
+ * @file FlightTaskAutoLineSmoothVel.cpp
  */
 
 #include "FlightTaskAutoLineSmoothVel.hpp"

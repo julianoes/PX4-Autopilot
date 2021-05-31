@@ -32,10 +32,7 @@
  ****************************************************************************/
 
 /**
- * @file FlightTaskManualPosition.hpp
- *
- * Flight task for manual position controlled mode.
- *
+ * @file FlightTaskManualAcceleration.hpp
  */
 
 #pragma once

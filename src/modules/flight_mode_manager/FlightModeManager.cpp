@@ -309,8 +309,6 @@ void FlightModeManager::start_flight_task()
 	} else if (should_disable_task) {
 		switchTask(FlightTaskIndex::None);
 	}
-
-	_last_vehicle_nav_state = _vehicle_status_sub.get().nav_state;
 }
 
 void FlightModeManager::check_failure(bool task_failure, uint8_t nav_state)

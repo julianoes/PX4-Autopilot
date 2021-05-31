@@ -35,7 +35,6 @@
 * @file FailureDetector.cpp
 *
 * @author Mathieu Bresciani	<brescianimathieu@gmail.com>
-*
 */
 
 #include "FailureDetector.hpp"
@@ -59,7 +58,8 @@ bool FailureDetector::update(const vehicle_status_s &vehicle_status, const vehic
 		}
 
 	} else {
-		_status &= ~(FAILURE_ROLL | FAILURE_PITCH | FAILURE_ALT | FAILURE_EXT);
+		_status &= ~(vehicle_status_s::FAILURE_ROLL | vehicle_status_s::FAILURE_PITCH | vehicle_status_s::FAILURE_ALT |
+			     vehicle_status_s::FAILURE_EXT);
 	}
 
 	if (_param_escs_en.get()) {
@@ -96,14 +96,14 @@ void FailureDetector::updateAttitudeStatus()
 		_pitch_failure_hysteresis.set_state_and_update(pitch_status, time_now);
 
 		// Update bitmask
-		_status &= ~(FAILURE_ROLL | FAILURE_PITCH);
+		_status &= ~(vehicle_status_s::FAILURE_ROLL | vehicle_status_s::FAILURE_PITCH);
 
 		if (_roll_failure_hysteresis.get_state()) {
-			_status |= FAILURE_ROLL;
+			_status |= vehicle_status_s::FAILURE_ROLL;
 		}
 
 		if (_pitch_failure_hysteresis.get_state()) {
-			_status |= FAILURE_PITCH;
+			_status |= vehicle_status_s::FAILURE_PITCH;
 		}
 	}
 }
@@ -123,10 +123,10 @@ void FailureDetector::updateExternalAtsStatus()
 		_ext_ats_failure_hysteresis.set_hysteresis_time_from(false, 100_ms); // 5 consecutive pulses at 50hz
 		_ext_ats_failure_hysteresis.set_state_and_update(ats_trigger_status, time_now);
 
-		_status &= ~FAILURE_EXT;
+		_status &= ~vehicle_status_s::FAILURE_EXT;
 
 		if (_ext_ats_failure_hysteresis.get_state()) {
-			_status |= FAILURE_EXT;
+			_status |= vehicle_status_s::FAILURE_EXT;
 		}
 	}
 }
@@ -145,13 +145,13 @@ void FailureDetector::updateEscsStatus(const vehicle_status_s &vehicle_status)
 			_esc_failure_hysteresis.set_state_and_update(all_escs_armed != esc_status.esc_armed_flags, time_now);
 
 			if (_esc_failure_hysteresis.get_state()) {
-				_status |= FAILURE_ARM_ESCS;
+				_status |= vehicle_status_s::FAILURE_ARM_ESC;
 			}
 		}
 
 	} else {
 		// reset ESC bitfield
 		_esc_failure_hysteresis.set_state_and_update(false, time_now);
-		_status &= ~FAILURE_ARM_ESCS;
+		_status &= ~vehicle_status_s::FAILURE_ARM_ESC;
 	}
 }

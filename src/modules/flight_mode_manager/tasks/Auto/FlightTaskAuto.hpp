@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2018 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2018-2021 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -45,6 +45,7 @@
 #include <uORB/topics/home_position.h>
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/vehicle_attitude_setpoint.h>
 #include <lib/ecl/geo/geo.h>
 
 // TODO: make this switchable in the board config, like a module
@@ -86,11 +87,6 @@ public:
 	bool updateInitialize() override;
 	bool updateFinalize() override;
 
-	/**
-	 * Sets an external yaw handler which can be used to implement a different yaw control strategy.
-	 */
-	void setYawHandler(WeatherVane *ext_yaw_handler) override {_ext_yaw_handler = ext_yaw_handler;}
-
 protected:
 	void _setDefaultConstraints() override;
 	matrix::Vector2f _getTargetVelocityXY(); /**< only used for follow-me and only here because of legacy reason.*/
@@ -125,8 +121,7 @@ protected:
 					(ParamInt<px4::params::MPC_YAW_MODE>) _param_mpc_yaw_mode, // defines how heading is executed,
 					(ParamInt<px4::params::COM_OBS_AVOID>) _param_com_obs_avoid, // obstacle avoidance active
 					(ParamFloat<px4::params::MPC_YAWRAUTO_MAX>) _param_mpc_yawrauto_max,
-					(ParamFloat<px4::params::MIS_YAW_ERR>) _param_mis_yaw_err, // yaw-error threshold
-					(ParamBool<px4::params::WV_EN>) _param_wv_en // enable/disable weather vane (VTOL)
+					(ParamFloat<px4::params::MIS_YAW_ERR>) _param_mis_yaw_err // yaw-error threshold
 				       );
 
 private:
@@ -134,6 +129,7 @@ private:
 	bool _yaw_lock{false}; /**< if within acceptance radius, lock yaw to current yaw */
 
 	uORB::SubscriptionData<position_setpoint_triplet_s> _sub_triplet_setpoint{ORB_ID(position_setpoint_triplet)};
+	uORB::SubscriptionData<vehicle_attitude_setpoint_s> _sub_vehicle_attitude_setpoint{ORB_ID(vehicle_attitude_setpoint)};
 
 	matrix::Vector3f
 	_triplet_target; /**< current triplet from navigator which may differ from the intenal one (_target) depending on the vehicle state. */
@@ -147,7 +143,7 @@ private:
 	float _reference_altitude{NAN};  /**< Altitude relative to ground. */
 	hrt_abstime _time_stamp_reference{0}; /**< time stamp when last reference update occured. */
 
-	WeatherVane *_ext_yaw_handler{nullptr};	/**< external weathervane library, used to implement a yaw control law that turns the vehicle nose into the wind */
+	WeatherVane _weather_vane{}; /**< used to implement a yaw control law that turns the vehicle nose into the wind */
 
 
 	void _limitYawRate(); /**< Limits the rate of change of the yaw setpoint. */

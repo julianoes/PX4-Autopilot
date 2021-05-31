@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2018 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2018-2021 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,11 +33,8 @@
 
 /**
  * @file WeatherVane.hpp
- * @author Ivo Drescher
- * @author Roman Bapst <roman@auterion.com>
  *
  * Weathervane controller.
- *
  */
 
 #pragma once
@@ -52,31 +49,17 @@ public:
 
 	~WeatherVane() = default;
 
-	void activate() {_is_active = true;}
+	bool enabled() const { return _param_wv_en.get(); }
 
-	void deactivate() {_is_active = false;}
-
-	bool is_active() {return _is_active;}
-
-	bool weathervane_enabled() { return _param_wv_en.get(); }
-
-	void update(const matrix::Vector3f &dcm_z_sp_prev, float yaw);
-
-	float get_weathervane_yawrate();
+	float calculate_weathervane_yawrate(const matrix::Vector3f &dcm_z_sp_prev, float yaw) const;
 
 	void update_parameters() { ModuleParams::updateParams(); }
 
 private:
-	matrix::Vector3f _dcm_z_sp_prev; ///< previous attitude setpoint body z axis
-	float _yaw = 0.0f; ///< current yaw angle
-
-	bool _is_active = true;
-
 	DEFINE_PARAMETERS(
 		(ParamBool<px4::params::WV_EN>) _param_wv_en,
 		(ParamFloat<px4::params::WV_ROLL_MIN>) _param_wv_roll_min,
 		(ParamFloat<px4::params::WV_GAIN>) _param_wv_gain,
 		(ParamFloat<px4::params::WV_YRATE_MAX>) _param_wv_yrate_max
 	)
-
 };

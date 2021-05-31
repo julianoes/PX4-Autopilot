@@ -170,12 +170,6 @@ public:
 		updateParams();
 	}
 
-	/**
-	 * Sets an external yaw handler which can be used by any flight task to implement a different yaw control strategy.
-	 * This method does nothing, each flighttask which wants to use the yaw handler needs to override this method.
-	 */
-	virtual void setYawHandler(WeatherVane *ext_yaw_handler) {}
-
 	void updateVelocityControllerFeedback(const matrix::Vector3f &vel_sp,
 					      const matrix::Vector3f &acc_sp)
 	{

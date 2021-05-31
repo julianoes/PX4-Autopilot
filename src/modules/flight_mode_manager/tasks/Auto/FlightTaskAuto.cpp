@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2018 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2018-2021 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -250,11 +250,9 @@ bool FlightTaskAuto::_evaluateTriplets()
 		_next_was_valid = _sub_triplet_setpoint.get().next.valid;
 	}
 
-	if (_ext_yaw_handler != nullptr) {
-		// activation/deactivation of weather vane is based on parameter WV_EN and setting of navigator (allow_weather_vane)
-		(_param_wv_en.get() && !_sub_triplet_setpoint.get().current.disable_weather_vane) ?	_ext_yaw_handler->activate() :
-		_ext_yaw_handler->deactivate();
-	}
+	// Check if weather vane should be used.
+	const bool should_use_weather_vane = _weather_vane.enabled()
+					     && !_sub_triplet_setpoint.get().current.disable_weather_vane;
 
 	// Calculate the current vehicle state and check if it has updated.
 	State previous_state = _current_state;
@@ -272,12 +270,12 @@ bool FlightTaskAuto::_evaluateTriplets()
 				_triplet_next_wp,
 				_sub_triplet_setpoint.get().next.yaw,
 				_sub_triplet_setpoint.get().next.yawspeed_valid ? _sub_triplet_setpoint.get().next.yawspeed : (float)NAN,
-				_ext_yaw_handler != nullptr && _ext_yaw_handler->is_active(), _sub_triplet_setpoint.get().current.type);
+				should_use_weather_vane, _sub_triplet_setpoint.get().current.type);
 		_obstacle_avoidance.checkAvoidanceProgress(_position, _triplet_prev_wp, _target_acceptance_radius, _closest_pt);
 	}
 
 	// set heading
-	if (_ext_yaw_handler != nullptr && _ext_yaw_handler->is_active()) {
+	if (should_use_weather_vane) {
 		_yaw_setpoint = _yaw;
 		// use the yawrate setpoint from WV only if not moving lateral (velocity setpoint below half of _param_mpc_xy_cruise)
 		// otherwise, keep heading constant (as output from WV is not according to wind in this case)
@@ -287,7 +285,9 @@ bool FlightTaskAuto::_evaluateTriplets()
 			_yawspeed_setpoint = 0.0f;
 
 		} else {
-			_yawspeed_setpoint = _ext_yaw_handler->get_weathervane_yawrate();
+			_yawspeed_setpoint = _weather_vane.calculate_weathervane_yawrate(
+						     matrix::Quatf(_sub_vehicle_attitude_setpoint.get().q_d).dcm_z(),
+						     _sub_vehicle_local_position.get().heading);
 		}
 
 
@@ -297,6 +297,7 @@ bool FlightTaskAuto::_evaluateTriplets()
 		_yaw_setpoint = NAN;
 
 	} else {
+		// XXX: wait what?
 		if ((_type != WaypointType::takeoff || _sub_triplet_setpoint.get().current.disable_weather_vane)
 		    && _sub_triplet_setpoint.get().current.yaw_valid) {
 			// Use the yaw computed in Navigator except during takeoff because

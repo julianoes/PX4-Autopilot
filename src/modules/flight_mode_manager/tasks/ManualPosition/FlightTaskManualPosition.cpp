@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2018 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2018-2021 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -166,14 +166,16 @@ void FlightTaskManualPosition::_updateSetpoints()
 
 	_updateXYlock(); // check for position lock
 
-	// check if an external yaw handler is active and if yes, let it update the yaw setpoints
-	if (_weathervane_yaw_handler != nullptr && _weathervane_yaw_handler->is_active()) {
-		_yaw_setpoint = NAN;
+	if (_weather_vane.enabled()) {
+		_yaw_setpoint = NAN; // XXX: shouldn't this be inside the if below?
 
-		// only enable the weathervane to change the yawrate when position lock is active (and thus the pos. sp. are NAN)
+		// Only enable the weathervane to change the yawrate when position lock is active
+		// (and thus the position setpoints are not NAN).
 		if (PX4_ISFINITE(_position_setpoint(0)) && PX4_ISFINITE(_position_setpoint(1))) {
 			// vehicle is steady
-			_yawspeed_setpoint += _weathervane_yaw_handler->get_weathervane_yawrate();
+			_yawspeed_setpoint += _weather_vane.calculate_weathervane_yawrate(
+						      matrix::Quatf(_sub_vehicle_attitude_setpoint.get().q_d).dcm_z(),
+						      _sub_vehicle_local_position.get().heading);
 		}
 	}
 }

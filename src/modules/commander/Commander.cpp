@@ -31,20 +31,8 @@
  *
  ****************************************************************************/
 
-/**
- * @file commander.cpp
- *
- * Main state machine / business logic
- *
- * @TODO This application is currently in a rewrite process. Main changes:
- *			- Calibration routines are moved into the event system
- *			- Commander is rewritten as class
- *			- State machines will be model driven
- */
-
 #include "Commander.hpp"
 
-/* commander module headers */
 #include "Arming/PreFlightCheck/PreFlightCheck.hpp"
 #include "Arming/ArmAuthorization/ArmAuthorization.h"
 #include "Arming/HealthFlags/HealthFlags.h"
@@ -53,7 +41,6 @@
 #include "px4_custom_mode.h"
 #include "state_machine_helper.h"
 
-/* PX4 headers */
 #include <dataman/dataman.h>
 #include <drivers/drv_hrt.h>
 #include <drivers/drv_tone_alarm.h>

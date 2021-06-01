@@ -90,11 +90,6 @@ enum class offboard_loss_rc_actions_t {
 	LOCKDOWN = 7, 		// Lock actuators (set actuator outputs to disarmed values)
 };
 
-enum class position_nav_loss_actions_t {
-	ALTITUDE_MANUAL = 0,	// Altitude/Manual. Assume use of remote control after fallback. Switch to Altitude mode if a height estimate is available, else switch to MANUAL.
-	LAND_TERMINATE = 1,	// Land/Terminate.  Assume no use of remote control after fallback. Switch to Land mode if a height estimate is available, else switch to TERMINATION.
-};
-
 extern const char *const arming_state_names[];
 extern const char *const nav_state_names[];
 
@@ -133,7 +128,6 @@ bool set_nav_state(vehicle_status_s &status, actuator_armed_s &armed, commander_
 		   const bool stay_in_failsafe, const vehicle_status_flags_s &status_flags, bool landed,
 		   const link_loss_actions_t rc_loss_act, const offboard_loss_actions_t offb_loss_act,
 		   const offboard_loss_rc_actions_t offb_loss_rc_act,
-		   const position_nav_loss_actions_t posctl_nav_loss_act,
 		   const float param_com_rcl_act_t);
 
 /*

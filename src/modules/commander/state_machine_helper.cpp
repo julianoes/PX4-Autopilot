@@ -439,7 +439,6 @@ bool set_nav_state(vehicle_status_s &status, actuator_armed_s &armed, commander_
 		   const bool stay_in_failsafe, const vehicle_status_flags_s &status_flags, bool landed,
 		   const link_loss_actions_t rc_loss_act, const offboard_loss_actions_t offb_loss_act,
 		   const offboard_loss_rc_actions_t offb_loss_rc_act,
-		   const position_nav_loss_actions_t posctl_nav_loss_act,
 		   const float param_com_rcl_act_t)
 {
 	const navigation_state_t nav_state_old = status.nav_state;
@@ -498,8 +497,6 @@ bool set_nav_state(vehicle_status_s &status, actuator_armed_s &armed, commander_
 
 	case commander_state_s::MAIN_STATE_POSCTL: {
 
-			const bool rc_fallback_allowed = (posctl_nav_loss_act != position_nav_loss_actions_t::LAND_TERMINATE) || !is_armed;
-
 			if (rc_lost && is_armed) {
 				enable_failsafe(status, old_failsafe, mavlink_log_pub, reason_no_rc);
 				set_link_loss_nav_state(status, armed, status_flags, internal_state, rc_loss_act, param_com_rcl_act_t);
@@ -510,7 +507,7 @@ bool set_nav_state(vehicle_status_s &status, actuator_armed_s &armed, commander_
 				 * For fixedwing, a global position is needed. */
 
 			} else if (check_invalid_pos_nav_state(status, old_failsafe, mavlink_log_pub, status_flags,
-							       rc_fallback_allowed, status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING)) {
+							       true, status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING)) {
 				// nothing to do - everything done in check_invalid_pos_nav_state
 
 			} else {

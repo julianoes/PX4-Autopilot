@@ -2803,26 +2803,6 @@ Commander::control_status_leds(bool changed, const uint8_t battery_warning)
 	_leds_counter++;
 }
 
-transition_result_t
-Commander::set_main_state(bool &changed)
-{
-	if (_safety.override_available && _safety.override_enabled) {
-		return set_main_state_override_on(changed);
-	}
-
-	return 	TRANSITION_NOT_CHANGED;
-}
-
-transition_result_t
-Commander::set_main_state_override_on(bool &changed)
-{
-	const transition_result_t res = main_state_transition(_status, commander_state_s::MAIN_STATE_MANUAL, _status_flags,
-					_internal_state);
-	changed = (res == TRANSITION_CHANGED);
-
-	return res;
-}
-
 void
 Commander::reset_posvel_validity()
 {

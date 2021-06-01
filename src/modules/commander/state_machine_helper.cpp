@@ -528,9 +528,6 @@ bool set_nav_state(vehicle_status_s &status, actuator_armed_s &armed, commander_
 		} else if (status.engine_failure) {
 			status.nav_state = vehicle_status_s::NAVIGATION_STATE_AUTO_LANDENGFAIL;
 
-		} else if (status_flags.vtol_transition_failure) {
-			status.nav_state = vehicle_status_s::NAVIGATION_STATE_AUTO_RTL;
-
 		} else if (status.mission_failure) {
 			status.nav_state = vehicle_status_s::NAVIGATION_STATE_AUTO_RTL;
 

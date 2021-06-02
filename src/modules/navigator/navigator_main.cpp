@@ -78,7 +78,6 @@ Navigator::Navigator() :
 	_gf_breach_avoidance(this),
 	_mission(this),
 	_loiter(this),
-	_takeoff(this),
 	_land(this),
 	_precland(this),
 	_rtl(this),
@@ -92,10 +91,9 @@ Navigator::Navigator() :
 	_navigation_mode_array[2] = &_rtl;
 	_navigation_mode_array[3] = &_engineFailure;
 	_navigation_mode_array[4] = &_gpsFailure;
-	_navigation_mode_array[5] = &_takeoff;
-	_navigation_mode_array[6] = &_land;
-	_navigation_mode_array[7] = &_precland;
-	_navigation_mode_array[8] = &_follow_target;
+	_navigation_mode_array[5] = &_land;
+	_navigation_mode_array[6] = &_precland;
+	_navigation_mode_array[7] = &_follow_target;
 
 	_handle_back_trans_dec_mss = param_find("VT_B_DEC_MSS");
 	_handle_reverse_delay = param_find("VT_B_REV_DEL");
@@ -342,49 +340,6 @@ Navigator::run()
 
 				// CMD_DO_REPOSITION is acknowledged by commander
 
-			} else if (cmd.command == vehicle_command_s::VEHICLE_CMD_NAV_TAKEOFF) {
-				position_setpoint_triplet_s *rep = get_takeoff_triplet();
-
-				// store current position as previous position and goal as next
-				rep->previous.yaw = get_local_position()->heading;
-				rep->previous.lat = get_global_position()->lat;
-				rep->previous.lon = get_global_position()->lon;
-				rep->previous.alt = get_global_position()->alt;
-
-				rep->current.loiter_radius = get_loiter_radius();
-				rep->current.loiter_direction = 1;
-				rep->current.type = position_setpoint_s::SETPOINT_TYPE_TAKEOFF;
-
-				if (home_position_valid()) {
-					rep->current.yaw = cmd.param4;
-
-					rep->previous.valid = true;
-					rep->previous.timestamp = hrt_absolute_time();
-
-				} else {
-					rep->current.yaw = get_local_position()->heading;
-					rep->previous.valid = false;
-				}
-
-				if (PX4_ISFINITE(cmd.param5) && PX4_ISFINITE(cmd.param6)) {
-					rep->current.lat = cmd.param5;
-					rep->current.lon = cmd.param6;
-
-				} else {
-					// If one of them is non-finite set the current global position as target
-					rep->current.lat = get_global_position()->lat;
-					rep->current.lon = get_global_position()->lon;
-				}
-
-				rep->current.alt = cmd.param7;
-
-				rep->current.valid = true;
-				rep->current.timestamp = hrt_absolute_time();
-
-				rep->next.valid = false;
-
-				// CMD_NAV_TAKEOFF is acknowledged by commander
-
 			} else if (cmd.command == vehicle_command_s::VEHICLE_CMD_DO_LAND_START) {
 
 				/* find NAV_CMD_DO_LAND_START in the mission and
@@ -603,11 +558,6 @@ Navigator::run()
 				break;
 			}
 
-		case vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF:
-			_pos_sp_triplet_published_invalid_once = false;
-			navigation_mode_new = &_takeoff;
-			break;
-
 		case vehicle_status_s::NAVIGATION_STATE_AUTO_LAND:
 			_pos_sp_triplet_published_invalid_once = false;
 			navigation_mode_new = &_land;
@@ -658,14 +608,11 @@ Navigator::run()
 
 		/* we have a new navigation mode: reset triplet */
 		if (_navigation_mode != navigation_mode_new) {
-			// We don't reset the triplet if we just did an auto-takeoff and are now
-			// going to loiter. Otherwise, we lose the takeoff altitude and end up lower
-			// than where we wanted to go.
+			// We don't reset the triplet if we go to loiter.
 			//
 			// FIXME: a better solution would be to add reset where they are needed and remove
 			//        this general reset here.
-			if (!(_navigation_mode == &_takeoff &&
-			      navigation_mode_new == &_loiter)) {
+			if (!(navigation_mode_new == &_loiter)) {
 				reset_triplets();
 			}
 		}

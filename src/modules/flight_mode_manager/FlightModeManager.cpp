@@ -181,6 +181,9 @@ void FlightModeManager::start_flight_task()
 	} else if (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_ORBIT) {
 		should_disable_task = false;
 
+	} else if (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF) {
+		should_disable_task = false;
+
 	} else if (_vehicle_control_mode_sub.get().flag_control_auto_enabled) {
 		// Auto related maneuvers
 		should_disable_task = false;
@@ -375,6 +378,10 @@ void FlightModeManager::handleCommand()
 		case vehicle_command_s::VEHICLE_CMD_DO_ORBIT:
 			desired_task = FlightTaskIndex::Orbit;
 			break;
+
+		case vehicle_command_s::VEHICLE_CMD_NAV_TAKEOFF:
+			desired_task = FlightTaskIndex::Takeoff;
+			break;
 		}
 
 		// ignore all unkown commands
@@ -426,20 +433,6 @@ void FlightModeManager::generateTrajectorySetpoint(const vehicle_local_position_
 
 	// limit altitude according to land detector
 	limitAltitude(setpoint, vehicle_local_position);
-
-	if (_takeoff_status_sub.updated()) {
-		takeoff_status_s takeoff_status;
-
-		if (_takeoff_status_sub.copy(&takeoff_status)) {
-			_takeoff_state = takeoff_status.takeoff_state;
-		}
-	}
-
-	if (_takeoff_state < takeoff_status_s::TAKEOFF_STATE_RAMPUP) {
-		// reactivate the task which will reset the setpoint to current state
-		_current_task.task->reActivate();
-	}
-
 
 	setpoint.timestamp = hrt_absolute_time();
 	_trajectory_setpoint_pub.publish(setpoint);

@@ -62,6 +62,7 @@ list(APPEND flight_tasks_all
 	ManualPosition
 	ManualPositionSmoothVel
 	Transition
+	Takeoff
 	${flight_tasks_to_add}
 )
 

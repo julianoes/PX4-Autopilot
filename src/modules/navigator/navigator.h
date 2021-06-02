@@ -51,7 +51,6 @@
 #include "mission.h"
 #include "navigator_mode.h"
 #include "rtl.h"
-#include "takeoff.h"
 
 #include "navigation.h"
 
@@ -86,7 +85,7 @@ using namespace time_literals;
 /**
  * Number of navigation modes that need on_active/on_inactive calls
  */
-#define NAVIGATOR_MODE_ARRAY_SIZE 9
+#define NAVIGATOR_MODE_ARRAY_SIZE 8
 
 class Navigator : public ModuleBase<Navigator>, public ModuleParams
 {
@@ -388,7 +387,6 @@ private:
 	NavigatorMode	*_navigation_mode{nullptr};		/**< abstract pointer to current navigation mode class */
 	Mission		_mission;			/**< class that handles the missions */
 	Loiter		_loiter;			/**< class that handles loiter */
-	Takeoff		_takeoff;			/**< class for handling takeoff commands */
 	Land		_land;			/**< class for handling land commands */
 	PrecLand	_precland;			/**< class for handling precision land commands */
 	RTL 		_rtl;				/**< class that handles RTL */
@@ -396,7 +394,7 @@ private:
 	GpsFailure	_gpsFailure;			/**< class that handles the OBC gpsfailure loss mode */
 	FollowTarget	_follow_target;
 
-	NavigatorMode *_navigation_mode_array[NAVIGATOR_MODE_ARRAY_SIZE];	/**< array of navigation modes */
+	NavigatorMode *_navigation_mode_array[8];	/**< array of navigation modes */
 
 	param_t _handle_back_trans_dec_mss{PARAM_INVALID};
 	param_t _handle_reverse_delay{PARAM_INVALID};

@@ -1,6 +1,6 @@
-/***************************************************************************
+/****************************************************************************
  *
- *   Copyright (c) 2014 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2021 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,29 +30,28 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+
 /**
- * @file takeoff.h
- *
- * Helper class to take off
- *
- * @author Lorenz Meier <lorenz@px4.io>
+ * @file FlightTaskTakeoff.hpp
  */
 
 #pragma once
 
-#include "navigator_mode.h"
-#include "mission_block.h"
+#include "FlightTask.hpp"
 
-class Takeoff : public MissionBlock
+class FlightTaskTakeoff : public FlightTask
 {
 public:
-	Takeoff(Navigator *navigator);
-	~Takeoff() = default;
+	FlightTaskTakeoff() = default;
 
-	void on_activation() override;
-	void on_active() override;
+	virtual ~FlightTaskTakeoff() = default;
 
-private:
+	bool applyCommandParameters(const vehicle_command_s &command) override;
+	bool activate(const vehicle_local_position_setpoint_s &last_setpoint) override;
+	bool updateInitialize() override;
+	bool update() override;
 
-	void set_takeoff_position();
+	DEFINE_PARAMETERS_CUSTOM_PARENT(FlightTask,
+					(ParamFloat<px4::params::MIS_TAKEOFF_ALT>) _param_mis_takeoff_alt /**< minimum takeoff altitude */
+				       )
 };

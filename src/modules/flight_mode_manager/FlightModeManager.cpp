@@ -102,11 +102,11 @@ void FlightModeManager::Run()
 		_vehicle_land_detected_sub.update();
 		_vehicle_status_sub.update();
 
-		start_flight_task();
-
 		if (_vehicle_command_sub.updated()) {
 			handleCommand();
 		}
+
+		start_flight_task();
 
 		if (isAnyTaskActive()) {
 			generateTrajectorySetpoint(vehicle_local_position);
@@ -177,6 +177,9 @@ void FlightModeManager::start_flight_task()
 			// we want to be in this mode, reset the failure count
 			_task_failure_count = 0;
 		}
+
+	} else if (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_ORBIT) {
+		should_disable_task = false;
 
 	} else if (_vehicle_control_mode_sub.get().flag_control_auto_enabled) {
 		// Auto related maneuvers
@@ -291,10 +294,6 @@ void FlightModeManager::start_flight_task()
 		}
 	}
 
-	if (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_ORBIT) {
-		should_disable_task = false;
-	}
-
 	// check task failure
 	if (task_failure) {
 
@@ -366,12 +365,17 @@ void FlightModeManager::send_vehicle_cmd_do(uint8_t nav_state)
 
 void FlightModeManager::handleCommand()
 {
-	// get command
 	vehicle_command_s command;
 
 	while (_vehicle_command_sub.update(&command)) {
-		// check what command it is
-		FlightTaskIndex desired_task = switchVehicleCommand(command.command);
+
+		FlightTaskIndex desired_task = FlightTaskIndex::None;
+
+		switch (command.command) {
+		case vehicle_command_s::VEHICLE_CMD_DO_ORBIT:
+			desired_task = FlightTaskIndex::Orbit;
+			break;
+		}
 
 		// ignore all unkown commands
 		if (desired_task != FlightTaskIndex::None) {

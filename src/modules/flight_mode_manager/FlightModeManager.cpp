@@ -100,6 +100,7 @@ void FlightModeManager::Run()
 		_home_position_sub.update();
 		_vehicle_control_mode_sub.update();
 		_vehicle_land_detected_sub.update();
+		_vehicle_status_sub.update();
 
 		start_flight_task();
 

@@ -382,9 +382,12 @@ void FlightModeManager::handleCommand()
 		case vehicle_command_s::VEHICLE_CMD_NAV_TAKEOFF:
 			desired_task = FlightTaskIndex::Takeoff;
 			break;
+
+		default:
+			// ignore all unkown commands
+			continue;
 		}
 
-		// ignore all unkown commands
 		if (desired_task != FlightTaskIndex::None) {
 			// switch to the commanded task
 			FlightTaskError switch_result = switchTask(desired_task);

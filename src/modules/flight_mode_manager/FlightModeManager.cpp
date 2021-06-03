@@ -160,7 +160,13 @@ void FlightModeManager::start_flight_task()
 		return;
 	}
 
-	// Auto-follow me
+	// This is a workaround for a race condition between the nav_state switching happening in
+	// commander, and the task change here. Since commander is running slower and at lower
+	// priority it can happen that we have switched the task here but commander is still in the
+	// previous mode and we will therefore switch back in the next iteration. Therefore, just a
+	// bit in that case.
+	const bool recently_switched = hrt_elapsed_time(&_last_task_change) < 500_ms;
+
 	if (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_FOLLOW_TARGET) {
 		should_disable_task = false;
 		FlightTaskError error = switchTask(FlightTaskIndex::AutoFollowMe);
@@ -184,7 +190,18 @@ void FlightModeManager::start_flight_task()
 	} else if (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF) {
 		should_disable_task = false;
 
-	} else if (_vehicle_control_mode_sub.get().flag_control_auto_enabled) {
+	} else if (recently_switched) {
+		should_disable_task = false;
+
+	} else if (!recently_switched && (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION
+					  || _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_LOITER
+					  || _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_RTL
+					  || _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_LANDENGFAIL
+					  || _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_LANDGPSFAIL
+					  || _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_LAND
+					  || _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_FOLLOW_TARGET
+					  || _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_PRECLAND)) {
+
 		// Auto related maneuvers
 		should_disable_task = false;
 		FlightTaskError error = FlightTaskError::NoError;
@@ -371,7 +388,6 @@ void FlightModeManager::handleCommand()
 	vehicle_command_s command;
 
 	while (_vehicle_command_sub.update(&command)) {
-
 		FlightTaskIndex desired_task = FlightTaskIndex::None;
 
 		switch (command.command) {
@@ -510,6 +526,8 @@ FlightTaskError FlightModeManager::switchTask(FlightTaskIndex new_task_index)
 	}
 
 	_current_task.task->setResetCounters(last_reset_counters);
+
+	_last_task_change = hrt_absolute_time();
 
 	return FlightTaskError::NoError;
 }

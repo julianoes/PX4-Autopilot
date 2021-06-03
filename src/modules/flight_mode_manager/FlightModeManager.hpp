@@ -130,6 +130,8 @@ private:
 		FlightTaskIndex index{FlightTaskIndex::None};
 	} _current_task{};
 
+	hrt_abstime _last_task_change{0};
+
 	int8_t _old_landing_gear_position{landing_gear_s::GEAR_KEEP};
 	int _task_failure_count{0};
 

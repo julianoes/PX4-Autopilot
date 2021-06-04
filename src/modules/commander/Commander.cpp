@@ -678,7 +678,9 @@ Commander::handle_command(const vehicle_command_s &cmd)
 							break;
 
 						case PX4_CUSTOM_SUB_MODE_AUTO_TAKEOFF:
-							desired_main_state = commander_state_s::MAIN_STATE_AUTO_TAKEOFF;
+							// We ignore DO_SET_MODE with TAKEOFF for now because we handle
+							// the NAV_TAKEOFF command in flight_mode_manager.
+							//desired_main_state = commander_state_s::MAIN_STATE_AUTO_TAKEOFF;
 							break;
 
 						case PX4_CUSTOM_SUB_MODE_AUTO_LAND:
@@ -985,22 +987,6 @@ Commander::handle_command(const vehicle_command_s &cmd)
 		}
 		break;
 
-	case vehicle_command_s::VEHICLE_CMD_NAV_TAKEOFF: {
-			/* ok, home set, use it to take off */
-			if (TRANSITION_CHANGED == main_state_transition(_status, commander_state_s::MAIN_STATE_AUTO_TAKEOFF, _status_flags,
-					_internal_state)) {
-				cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_ACCEPTED;
-
-			} else if (_internal_state.main_state == commander_state_s::MAIN_STATE_AUTO_TAKEOFF) {
-				cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_ACCEPTED;
-
-			} else {
-				mavlink_log_critical(&_mavlink_log_pub, "Takeoff denied! Please disarm and retry");
-				cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED;
-			}
-		}
-		break;
-
 	case vehicle_command_s::VEHICLE_CMD_NAV_LAND: {
 			if (TRANSITION_DENIED != main_state_transition(_status, commander_state_s::MAIN_STATE_AUTO_LAND, _status_flags,
 					_internal_state)) {
@@ -1063,19 +1049,6 @@ Commander::handle_command(const vehicle_command_s &cmd)
 				mavlink_log_critical(&_mavlink_log_pub, "Control high latency failed! Telemetry unavailable");
 			}
 		}
-		break;
-
-	case vehicle_command_s::VEHICLE_CMD_DO_ORBIT:
-
-		// Switch to orbit state and let the orbit task handle the command further
-		if (TRANSITION_DENIED != main_state_transition(_status, commander_state_s::MAIN_STATE_ORBIT, _status_flags,
-				_internal_state)) {
-			cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_ACCEPTED;
-
-		} else {
-			cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED;
-		}
-
 		break;
 
 	case vehicle_command_s::VEHICLE_CMD_DO_MOTOR_TEST:
@@ -1338,6 +1311,8 @@ Commander::handle_command(const vehicle_command_s &cmd)
 	case vehicle_command_s::VEHICLE_CMD_DO_SET_ROI_NONE:
 	case vehicle_command_s::VEHICLE_CMD_INJECT_FAILURE:
 	case vehicle_command_s::VEHICLE_CMD_SET_GPS_GLOBAL_ORIGIN:
+	case vehicle_command_s::VEHICLE_CMD_DO_ORBIT:
+	case vehicle_command_s::VEHICLE_CMD_NAV_TAKEOFF:
 		/* ignore commands that are handled by other parts of the system */
 		break;
 
@@ -1748,6 +1723,8 @@ Commander::run()
 #endif // BOARD_HAS_POWER_CONTROL
 
 		offboard_control_update();
+
+		flight_mode_state_upate();
 
 		if (_system_power_sub.updated()) {
 			system_power_s system_power{};
@@ -3622,6 +3599,21 @@ Commander::offboard_control_update()
 	if (_status_flags.offboard_control_signal_lost != offboard_lost) {
 		_status_flags.offboard_control_signal_lost = offboard_lost;
 		_status_changed = true;
+	}
+}
+
+void
+Commander::flight_mode_state_upate()
+{
+	if (_flight_mode_state_sub.updated()) {
+		_flight_mode_state_sub.update();
+
+		transition_result_t ret = main_state_transition(
+						  _status, _flight_mode_state_sub.get().main_state, _status_flags, _internal_state);
+
+		if ((ret == TRANSITION_DENIED)) {
+			PX4_ERR("flight mode state %d change denied", _flight_mode_state_sub.get().main_state);
+		}
 	}
 }
 

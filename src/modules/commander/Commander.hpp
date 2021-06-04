@@ -67,6 +67,7 @@
 #include <uORB/topics/esc_status.h>
 #include <uORB/topics/estimator_selector_status.h>
 #include <uORB/topics/estimator_status.h>
+#include <uORB/topics/flight_mode_state.h>
 #include <uORB/topics/geofence_result.h>
 #include <uORB/topics/iridiumsbd_status.h>
 #include <uORB/topics/manual_control_setpoint.h>
@@ -168,6 +169,8 @@ private:
 	void updateHomePositionYaw(float yaw);
 
 	void update_control_mode();
+
+	void flight_mode_state_upate();
 
 	void UpdateEstimateValidity();
 
@@ -410,6 +413,7 @@ private:
 	uORB::SubscriptionData<vehicle_global_position_s>	_global_position_sub{ORB_ID(vehicle_global_position)};
 	uORB::SubscriptionData<vehicle_local_position_s>	_local_position_sub{ORB_ID(vehicle_local_position)};
 	uORB::SubscriptionData<rtl_flight_time_s>		_rtl_flight_time_sub{ORB_ID(rtl_flight_time)};
+	uORB::SubscriptionData<flight_mode_state_s>		_flight_mode_state_sub{ORB_ID(flight_mode_state)};
 
 	// Publications
 	uORB::Publication<actuator_armed_s>			_armed_pub{ORB_ID(actuator_armed)};

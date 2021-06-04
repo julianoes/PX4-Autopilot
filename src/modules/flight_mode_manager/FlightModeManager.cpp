@@ -33,6 +33,7 @@
 
 #include "FlightModeManager.hpp"
 
+#include <uORB/topics/commander_state.h>
 #include <lib/mathlib/mathlib.h>
 #include <lib/matrix/matrix/math.hpp>
 
@@ -163,8 +164,8 @@ void FlightModeManager::start_flight_task()
 	// This is a workaround for a race condition between the nav_state switching happening in
 	// commander, and the task change here. Since commander is running slower and at lower
 	// priority it can happen that we have switched the task here but commander is still in the
-	// previous mode and we will therefore switch back in the next iteration. Therefore, just a
-	// bit in that case.
+	// previous mode and we will therefore switch according to our flight_mode_state in the
+	// next iteration. Therefore, just wait bit in that case.
 	const bool recently_switched = hrt_elapsed_time(&_last_task_change) < 500_ms;
 
 	if (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_FOLLOW_TARGET) {
@@ -528,6 +529,23 @@ FlightTaskError FlightModeManager::switchTask(FlightTaskIndex new_task_index)
 	_current_task.task->setResetCounters(last_reset_counters);
 
 	_last_task_change = hrt_absolute_time();
+
+	switch (_current_task.index) {
+	case FlightTaskIndex::Takeoff: {
+			flight_mode_state_s flight_mode_state;
+			flight_mode_state.main_state = commander_state_s::MAIN_STATE_AUTO_TAKEOFF;
+			_flight_mode_state_pub.publish(flight_mode_state);
+		} break;
+
+	case FlightTaskIndex::Orbit: {
+			flight_mode_state_s flight_mode_state;
+			flight_mode_state.main_state = commander_state_s::MAIN_STATE_ORBIT;
+			_flight_mode_state_pub.publish(flight_mode_state);
+		} break;
+
+	default:
+		break;
+	}
 
 	return FlightTaskError::NoError;
 }

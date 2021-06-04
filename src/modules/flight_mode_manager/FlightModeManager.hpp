@@ -93,6 +93,7 @@ private:
 	void send_vehicle_cmd_do(uint8_t nav_state);
 	void handleCommand();
 	void generateTrajectorySetpoint(const vehicle_local_position_s &vehicle_local_position);
+	void tryToMoveOn();
 	void limitAltitude(vehicle_local_position_setpoint_s &setpoint, const vehicle_local_position_s &vehicle_local_position);
 
 	/**

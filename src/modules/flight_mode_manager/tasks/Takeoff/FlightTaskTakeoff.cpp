@@ -98,3 +98,10 @@ bool FlightTaskTakeoff::update()
 
 	return ret;
 }
+
+bool FlightTaskTakeoff::isFinished() const
+{
+	const bool has_reached_altitude = fabsf(_position_setpoint(2) - _position(2)) < 0.1f;
+	const bool has_low_z_vel = fabsf(_velocity(2)) < 0.2f;
+	return has_reached_altitude && has_low_z_vel;
+}

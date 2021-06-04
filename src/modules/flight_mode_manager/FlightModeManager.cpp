@@ -111,6 +111,7 @@ void FlightModeManager::Run()
 
 		if (isAnyTaskActive()) {
 			generateTrajectorySetpoint(vehicle_local_position);
+			tryToMoveOn();
 		}
 
 	}
@@ -473,6 +474,25 @@ void FlightModeManager::generateTrajectorySetpoint(const vehicle_local_position_
 	_old_landing_gear_position = landing_gear.landing_gear;
 }
 
+void FlightModeManager::tryToMoveOn()
+{
+	if (_current_task.task->isFinished()) {
+		switch (_current_task.index) {
+		case FlightTaskIndex::Takeoff: {
+				FlightTaskError switch_result = switchTask(FlightTaskIndex::AutoLineSmoothVel);
+
+				if (switch_result != FlightTaskError::NoError) {
+					PX4_WARN("switching after Takeoff failed");
+				}
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
+}
+
 void FlightModeManager::limitAltitude(vehicle_local_position_setpoint_s &setpoint,
 				      const vehicle_local_position_s &vehicle_local_position)
 {
@@ -535,6 +555,14 @@ FlightTaskError FlightModeManager::switchTask(FlightTaskIndex new_task_index)
 			flight_mode_state_s flight_mode_state;
 			flight_mode_state.main_state = commander_state_s::MAIN_STATE_AUTO_TAKEOFF;
 			_flight_mode_state_pub.publish(flight_mode_state);
+		} break;
+
+	case FlightTaskIndex::AutoLineSmoothVel: {
+			// TODO: We would need to communicate the state here but we don't know if it is
+			// LOITER or MISSION yet.
+			//flight_mode_state_s flight_mode_state;
+			//flight_mode_state.main_state = commander_state_s::MAIN_STATE_ORBIT;
+			//_flight_mode_state_pub.publish(flight_mode_state);
 		} break;
 
 	case FlightTaskIndex::Orbit: {

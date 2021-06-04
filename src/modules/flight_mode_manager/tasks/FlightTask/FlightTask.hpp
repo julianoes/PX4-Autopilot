@@ -117,6 +117,11 @@ public:
 	virtual bool updateFinalize() { return true; };
 
 	/**
+	 * Is task finished? If so, we should move on to the next one.
+	 */
+	virtual bool isFinished() const { return false; };
+
+	/**
 	 * Get the output data
 	 * @return task output setpoints that get executed by the positon controller
 	 */

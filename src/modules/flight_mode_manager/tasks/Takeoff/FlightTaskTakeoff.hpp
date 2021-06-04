@@ -50,6 +50,7 @@ public:
 	bool activate(const vehicle_local_position_setpoint_s &last_setpoint) override;
 	bool updateInitialize() override;
 	bool update() override;
+	bool isFinished() const override;
 
 	DEFINE_PARAMETERS_CUSTOM_PARENT(FlightTask,
 					(ParamFloat<px4::params::MIS_TAKEOFF_ALT>) _param_mis_takeoff_alt /**< minimum takeoff altitude */

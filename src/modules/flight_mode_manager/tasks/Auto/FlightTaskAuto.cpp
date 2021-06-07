@@ -50,13 +50,26 @@ FlightTaskAuto::FlightTaskAuto() :
 
 bool FlightTaskAuto::activate(const vehicle_local_position_setpoint_s &last_setpoint)
 {
-	bool ret = FlightTask::activate(last_setpoint);
+	if (!FlightTask::activate(last_setpoint)) {
+		return false;
+	}
+
+	const mission_result_s &mission_result = _sub_mission_result.get();
+	const bool mission_valid = mission_result.timestamp != 0
+				   && mission_result.valid
+				   && !mission_result.finished
+				   && !mission_result.failure;
+
+	if (!mission_valid) {
+		return false;
+	}
+
 	_position_setpoint = _position;
 	_velocity_setpoint = _velocity;
 	_yaw_setpoint = _yaw_sp_prev = _yaw;
 	_yawspeed_setpoint = 0.0f;
 	_setDefaultConstraints();
-	return ret;
+	return true;
 }
 
 bool FlightTaskAuto::updateInitialize()
@@ -66,6 +79,7 @@ bool FlightTaskAuto::updateInitialize()
 	_sub_home_position.update();
 	_sub_vehicle_status.update();
 	_sub_triplet_setpoint.update();
+	_sub_mission_result.update();
 	_sub_vehicle_attitude_setpoint.update();
 
 	// require valid reference and valid target

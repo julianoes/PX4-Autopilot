@@ -44,6 +44,7 @@
 #include <uORB/topics/position_setpoint.h>
 #include <uORB/topics/home_position.h>
 #include <uORB/topics/manual_control_setpoint.h>
+#include <uORB/topics/mission_result.h>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
 #include <lib/ecl/geo/geo.h>
@@ -130,6 +131,7 @@ private:
 
 	uORB::SubscriptionData<position_setpoint_triplet_s> _sub_triplet_setpoint{ORB_ID(position_setpoint_triplet)};
 	uORB::SubscriptionData<vehicle_attitude_setpoint_s> _sub_vehicle_attitude_setpoint{ORB_ID(vehicle_attitude_setpoint)};
+	uORB::SubscriptionData<mission_result_s> _sub_mission_result{ORB_ID(mission_result)};
 
 	matrix::Vector3f
 	_triplet_target; /**< current triplet from navigator which may differ from the intenal one (_target) depending on the vehicle state. */

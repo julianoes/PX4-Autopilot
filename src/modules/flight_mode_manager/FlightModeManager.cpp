@@ -192,11 +192,13 @@ void FlightModeManager::start_flight_task()
 	} else if (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF) {
 		should_disable_task = false;
 
+	} else if (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_LOITER) {
+		should_disable_task = false;
+
 	} else if (recently_switched) {
 		should_disable_task = false;
 
 	} else if (!recently_switched && (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION
-					  || _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_LOITER
 					  || _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_RTL
 					  || _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_LANDENGFAIL
 					  || _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_LANDGPSFAIL
@@ -479,7 +481,7 @@ void FlightModeManager::tryToMoveOn()
 	if (_current_task.task->isFinished()) {
 		switch (_current_task.index) {
 		case FlightTaskIndex::Takeoff: {
-				FlightTaskError switch_result = switchTask(FlightTaskIndex::AutoLineSmoothVel);
+				FlightTaskError switch_result = switchTask(FlightTaskIndex::Hold);
 
 				if (switch_result != FlightTaskError::NoError) {
 					PX4_WARN("switching after Takeoff failed");
@@ -557,12 +559,10 @@ FlightTaskError FlightModeManager::switchTask(FlightTaskIndex new_task_index)
 			_flight_mode_state_pub.publish(flight_mode_state);
 		} break;
 
-	case FlightTaskIndex::AutoLineSmoothVel: {
-			// TODO: We would need to communicate the state here but we don't know if it is
-			// LOITER or MISSION yet.
-			//flight_mode_state_s flight_mode_state;
-			//flight_mode_state.main_state = commander_state_s::MAIN_STATE_ORBIT;
-			//_flight_mode_state_pub.publish(flight_mode_state);
+	case FlightTaskIndex::Hold: {
+			flight_mode_state_s flight_mode_state;
+			flight_mode_state.main_state = commander_state_s::MAIN_STATE_AUTO_LOITER;
+			_flight_mode_state_pub.publish(flight_mode_state);
 		} break;
 
 	case FlightTaskIndex::Orbit: {

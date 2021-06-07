@@ -66,6 +66,7 @@ bool FlightTaskAuto::updateInitialize()
 	_sub_home_position.update();
 	_sub_vehicle_status.update();
 	_sub_triplet_setpoint.update();
+	_sub_vehicle_attitude_setpoint.update();
 
 	// require valid reference and valid target
 	ret = ret && _evaluateGlobalReference() && _evaluateTriplets();

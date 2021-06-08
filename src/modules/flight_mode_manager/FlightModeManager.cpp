@@ -394,18 +394,11 @@ void FlightModeManager::handleCommand()
 	while (_vehicle_command_sub.update(&command)) {
 		FlightTaskIndex desired_task = FlightTaskIndex::None;
 
-		switch (command.command) {
-		case vehicle_command_s::VEHICLE_CMD_DO_ORBIT:
+		if (FlightTaskOrbit::doesCommandApply(command)) {
 			desired_task = FlightTaskIndex::Orbit;
-			break;
 
-		case vehicle_command_s::VEHICLE_CMD_NAV_TAKEOFF:
+		} else if (FlightTaskTakeoff::doesCommandApply(command)) {
 			desired_task = FlightTaskIndex::Takeoff;
-			break;
-
-		default:
-			// ignore all unkown commands
-			continue;
 		}
 
 		if (desired_task != FlightTaskIndex::None) {

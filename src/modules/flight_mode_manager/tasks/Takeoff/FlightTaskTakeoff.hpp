@@ -46,6 +46,7 @@ public:
 
 	virtual ~FlightTaskTakeoff() = default;
 
+	static bool doesCommandApply(const vehicle_command_s  &command);
 	bool applyCommandParameters(const vehicle_command_s &command) override;
 	bool activate(const vehicle_local_position_setpoint_s &last_setpoint) override;
 	bool updateInitialize() override;

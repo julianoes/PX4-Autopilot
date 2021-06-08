@@ -37,6 +37,15 @@
 
 #include "FlightTaskTakeoff.hpp"
 
+bool FlightTaskTakeoff::doesCommandApply(const vehicle_command_s &command)
+{
+	if (command.command == vehicle_command_s::VEHICLE_CMD_NAV_TAKEOFF) {
+		return true;
+	}
+
+	return  false;
+}
+
 bool FlightTaskTakeoff::applyCommandParameters(const vehicle_command_s &command)
 {
 	if (PX4_ISFINITE(command.param4)) {

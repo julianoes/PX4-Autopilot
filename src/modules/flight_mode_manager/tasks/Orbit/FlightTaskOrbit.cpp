@@ -47,6 +47,15 @@ FlightTaskOrbit::FlightTaskOrbit() : _circle_approach_line(_position)
 	_sticks_data_required = false;
 }
 
+bool FlightTaskOrbit::doesCommandApply(const vehicle_command_s &command)
+{
+	if (command.command == vehicle_command_s::VEHICLE_CMD_DO_ORBIT) {
+		return true;
+	}
+
+	return  false;
+}
+
 bool FlightTaskOrbit::applyCommandParameters(const vehicle_command_s &command)
 {
 	bool ret = true;

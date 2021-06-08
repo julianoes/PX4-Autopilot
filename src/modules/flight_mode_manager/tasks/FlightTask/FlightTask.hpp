@@ -44,6 +44,7 @@
 #include <px4_platform_common/module_params.h>
 #include <drivers/drv_hrt.h>
 #include <matrix/matrix/math.hpp>
+#include <mathlib/mathlib.h>
 #include <uORB/Subscription.hpp>
 #include <uORB/topics/landing_gear.h>
 #include <uORB/topics/vehicle_local_position.h>
@@ -213,8 +214,12 @@ protected:
 	virtual void _ekfResetHandlerVelocityZ() {};
 	virtual void _ekfResetHandlerHeading(float delta_psi) {};
 
+	static bool _compute_heading_from_2D_vector(float &heading, matrix::Vector2f v);
+
 	map_projection_reference_s _global_local_proj_ref{};
 	float                      _global_local_alt0{NAN};
+
+	static constexpr float SIGMA_NORM = 0.001f;
 
 	/* Time abstraction */
 	static constexpr uint64_t _timeout = 500000; /**< maximal time in us before a loop or data times out */

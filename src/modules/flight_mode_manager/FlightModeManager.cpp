@@ -399,6 +399,9 @@ void FlightModeManager::handleCommand()
 
 		} else if (FlightTaskTakeoff::doesCommandApply(command)) {
 			desired_task = FlightTaskIndex::Takeoff;
+
+		} else if (FlightTaskHold::doesCommandApply(command)) {
+			desired_task = FlightTaskIndex::Hold;
 		}
 
 		if (desired_task != FlightTaskIndex::None) {

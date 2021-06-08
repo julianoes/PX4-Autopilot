@@ -47,12 +47,20 @@ public:
 	FlightTaskHold() = default;
 	virtual ~FlightTaskHold() = default;
 
+	static bool doesCommandApply(const vehicle_command_s  &command) ;
+	bool applyCommandParameters(const vehicle_command_s &command) override;
+
 	bool activate(const vehicle_local_position_setpoint_s &last_setpoint) override;
 	bool updateInitialize() override;
 	bool updateFinalize() override;
 	bool update() override;
 
+	DEFINE_PARAMETERS_CUSTOM_PARENT(FlightTask,
+					(ParamInt<px4::params::MPC_YAW_MODE>) _param_mpc_yaw_mode // defines how heading is executed,
+				       );
 private:
+	void _set_heading_from_mode();
+
 	WeatherVane _weather_vane{}; /**< used to implement a yaw control law that turns the vehicle nose into the wind */
 
 	uORB::SubscriptionData<vehicle_attitude_setpoint_s> _sub_vehicle_attitude_setpoint{ORB_ID(vehicle_attitude_setpoint)};

@@ -605,31 +605,6 @@ Commander::handle_command(const vehicle_command_s &cmd)
 
 	/* request to set different system mode */
 	switch (cmd.command) {
-	case vehicle_command_s::VEHICLE_CMD_DO_REPOSITION: {
-
-			// Just switch the flight mode here, the navigator takes care of
-			// doing something sensible with the coordinates. Its designed
-			// to not require navigator and command to receive / process
-			// the data at the exact same time.
-
-			// Check if a mode switch had been requested
-			if ((((uint32_t)cmd.param2) & 1) > 0) {
-				transition_result_t main_ret = main_state_transition(_status, commander_state_s::MAIN_STATE_AUTO_LOITER,
-							       _status_flags, _internal_state);
-
-				if ((main_ret != TRANSITION_DENIED)) {
-					cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_ACCEPTED;
-
-				} else {
-					cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED;
-					mavlink_log_critical(&_mavlink_log_pub, "Reposition command rejected");
-				}
-
-			} else {
-				cmd_result = vehicle_command_s::VEHICLE_CMD_RESULT_ACCEPTED;
-			}
-		}
-		break;
 
 	case vehicle_command_s::VEHICLE_CMD_DO_SET_MODE: {
 			uint8_t base_mode = (uint8_t)cmd.param1;
@@ -654,8 +629,6 @@ Commander::handle_command(const vehicle_command_s &cmd)
 					if (custom_sub_mode > 0) {
 
 						switch (custom_sub_mode) {
-						case PX4_CUSTOM_SUB_MODE_AUTO_LOITER:
-							desired_main_state = commander_state_s::MAIN_STATE_AUTO_LOITER;
 							break;
 
 						case PX4_CUSTOM_SUB_MODE_AUTO_MISSION:
@@ -1302,6 +1275,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 	case vehicle_command_s::VEHICLE_CMD_SET_GPS_GLOBAL_ORIGIN:
 	case vehicle_command_s::VEHICLE_CMD_DO_ORBIT:
 	case vehicle_command_s::VEHICLE_CMD_NAV_TAKEOFF:
+	case vehicle_command_s::VEHICLE_CMD_DO_REPOSITION:
 		/* ignore commands that are handled by other parts of the system */
 		break;
 

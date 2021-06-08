@@ -36,13 +36,125 @@
 
 #include "FlightTaskHold.hpp"
 
+#include "../../../commander/px4_custom_mode.h"
+
 using namespace matrix;
+
+bool FlightTaskHold::doesCommandApply(const vehicle_command_s &command)
+{
+	if (command.command == vehicle_command_s::VEHICLE_CMD_DO_SET_MODE) {
+		uint8_t base_mode = static_cast<uint8_t>(command.param1);
+		uint8_t custom_main_mode = static_cast<uint8_t>(command.param2);
+		uint8_t custom_sub_mode = static_cast<uint8_t>(command.param3);
+
+		if (base_mode & VEHICLE_MODE_FLAG_CUSTOM_MODE_ENABLED
+		    && custom_main_mode == PX4_CUSTOM_MAIN_MODE_AUTO
+		    && custom_sub_mode == PX4_CUSTOM_SUB_MODE_AUTO_LOITER) {
+			return true;
+		}
+
+	} else if (command.command == vehicle_command_s::VEHICLE_CMD_DO_REPOSITION) {
+		if (static_cast<int>(command.param2) == 1) {
+			// MAV_DO_REPOSITION_FLAGS_CHANGE_MODE.
+			return true;
+		}
+	}
+
+	return  false;
+}
+
+bool FlightTaskHold::applyCommandParameters(const vehicle_command_s &command)
+{
+	if (!FlightTaskHold::doesCommandApply(command)) {
+		return false;
+	}
+
+	if (command.command == vehicle_command_s::VEHICLE_CMD_DO_REPOSITION) {
+		if (PX4_ISFINITE(command.param1) && command.param1 > 0.0f) {
+			_constraints.speed_xy = command.param1;
+		}
+
+		if (PX4_ISFINITE(command.param5) && PX4_ISFINITE(command.param6)) {
+
+			if (!map_projection_initialized(&_global_local_proj_ref)) {
+				return false;
+			}
+
+			map_projection_project(&_global_local_proj_ref,
+					       command.param5, command.param6,
+					       &_position_setpoint(0), &_position_setpoint(1));
+
+			_velocity_setpoint(0) = NAN;
+			_velocity_setpoint(1) = NAN;
+		}
+
+		if (PX4_ISFINITE(command.param7)) {
+			_position_setpoint(2) = -(command.param7 - _sub_vehicle_local_position.get().ref_alt);
+			_velocity_setpoint(2) = NAN;
+		}
+
+		// We need to do yaw last as it depends on the position setpoint.
+		if (PX4_ISFINITE(command.param4)) {
+			_yaw_setpoint = math::radians(command.param4);
+
+		} else {
+			_set_heading_from_mode();
+		}
+	}
+
+	return true;
+}
+
+void FlightTaskHold::_set_heading_from_mode()
+{
+	Vector2f v{}; // Vector that points towards desired location
+
+	switch (_param_mpc_yaw_mode.get()) {
+	// FALLTHROUGH
+	case 0: // Heading points towards where we go.
+
+	// FALLTHROUGH
+	case 3: // Same as 0 as we're going straight.
+	case 4: // Same as 0 but yaw first. TODO: implement yaw first
+		if (PX4_ISFINITE(_position_setpoint(0)) && PX4_ISFINITE(_position_setpoint(1))) {
+			v = Vector2f(_position_setpoint) - Vector2f(_position);
+		}
+
+		break;
+
+	case 1: // Heading points towards home.
+		if (_sub_home_position.get().valid_lpos) {
+			v = Vector2f(&_sub_home_position.get().x) - Vector2f(_position);
+		}
+
+		break;
+
+	case 2: // Heading point away from home.
+		if (_sub_home_position.get().valid_lpos) {
+			v = Vector2f(_position) - Vector2f(&_sub_home_position.get().x);
+		}
+
+		break;
+	}
+
+	if (PX4_ISFINITE(v.length())) {
+		if (!_compute_heading_from_2D_vector(_yaw_setpoint, v)) {
+			_yaw_setpoint = NAN;
+		}
+
+	} else {
+		_yaw_setpoint = NAN;
+	}
+}
 
 bool FlightTaskHold::activate(const vehicle_local_position_setpoint_s &last_setpoint)
 {
 	_has_stopped = false;
 	bool ret = FlightTask::activate(last_setpoint);
 
+	_position_setpoint(0) = NAN;
+	_position_setpoint(1) = NAN;
+	_position_setpoint(2) = NAN;
 	_velocity_setpoint(0) = 0.0f;
 	_velocity_setpoint(1) = 0.0f;
 	_velocity_setpoint(2) = 0.0f;
@@ -68,14 +180,23 @@ bool FlightTaskHold::updateFinalize()
 
 bool FlightTaskHold::update()
 {
-	const bool has_stopped = sqrt(_velocity(0) * _velocity(0) + _velocity(1) * _velocity(1) + _velocity(2) * _velocity(
-					      2)) < 0.1f;
+	const bool has_stopped = sqrt(_velocity(0) * _velocity(0)
+				      + _velocity(1) * _velocity(1)
+				      + _velocity(2) * _velocity(2)) < 0.1f;
+
 
 	if (has_stopped && !_has_stopped) {
 		_has_stopped = has_stopped;
-		_position_setpoint(0) = _position(0);
-		_position_setpoint(1) = _position(1);
-		_position_setpoint(2) = _position(2);
+
+		if (!PX4_ISFINITE(_position_setpoint(0)) && !PX4_ISFINITE(_position_setpoint(1))) {
+			_position_setpoint(0) = _position(0);
+			_position_setpoint(1) = _position(1);
+		}
+
+		if (!PX4_ISFINITE(_position_setpoint(2))) {
+			_position_setpoint(2) = _position(2);
+		}
+
 		_velocity_setpoint(0) = NAN;
 		_velocity_setpoint(1) = NAN;
 		_velocity_setpoint(2) = NAN;

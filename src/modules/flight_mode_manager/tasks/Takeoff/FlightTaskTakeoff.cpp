@@ -60,7 +60,7 @@ bool FlightTaskTakeoff::applyCommandParameters(const vehicle_command_s &command)
 	if (PX4_ISFINITE(command.param7)) {
 		// XXX: For command long without frame the takeoff altitude is currently AMSL.
 		if (_sub_vehicle_local_position.get().z_global) {
-			_position_setpoint(2) = _position(2) - (command.param7 - _sub_vehicle_local_position.get().ref_alt);
+			_position_setpoint(2) = -(command.param7 - _sub_vehicle_local_position.get().ref_alt);
 
 			if (_position_setpoint(2) > _position(2)) {
 				PX4_WARN("Takeoff altitude below current altitude");

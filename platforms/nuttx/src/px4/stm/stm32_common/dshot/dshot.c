@@ -90,15 +90,15 @@ static uint8_t dshot_burst_buffer_array[DSHOT_TIMERS * DSHOT_BURST_BUFFER_SIZE(M
 px4_cache_aligned_data() = {};
 static uint32_t *dshot_burst_buffer[DSHOT_TIMERS] = {};
 
-static uint16_t dshot_capture_buffer[32] px4_cache_aligned_data() = {};
+static dshot_handler_t dshot_capture_handlers[4] = {};
+static uint16_t dshot_capture_buffers[4][32] px4_cache_aligned_data() = {};
 
 static struct hrt_call _call;
 
 static void do_capture(DMA_HANDLE handle, uint8_t status, void *arg);
 static void process_capture_results(void *arg);
-static unsigned calculate_period(void);
+static unsigned calculate_period(unsigned channel);
 static int dshot_output_timer_init(unsigned channel);
-static int dshot_output_timer_deinit(unsigned channel);
 
 static uint32_t read_ok = 0;
 static uint32_t read_fail_nibble = 0;
@@ -112,11 +112,15 @@ static int _timers_init_mask = 0;
 static int _channels_init_mask = 0;
 
 // We only support capture on the first timer (usually 4 channels) for now.
-static uint32_t _motor_to_capture = 0;
 static int32_t _erpms[4] = {};
 
 static void(*_erpm_callback)(int32_t[], size_t, void *) = NULL;
 static void *_erpm_callback_context = NULL;
+
+// We use this state to make sure the steps are never executed out of order which
+// can lead to segfaults if a dma_handle is suddenly NULL.
+enum State {None, Trigger, Capture, Collect};
+static enum State _state = None;
 
 uint8_t nibbles_from_mapped(uint8_t mapped)
 {
@@ -175,7 +179,7 @@ uint8_t nibbles_from_mapped(uint8_t mapped)
 	}
 }
 
-unsigned calculate_period(void)
+unsigned calculate_period(unsigned channel)
 {
 	uint32_t value = 0;
 
@@ -185,19 +189,19 @@ unsigned calculate_period(void)
 	unsigned shifted = 0;
 	unsigned previous = 0;
 
-	for (unsigned i = 1; i < (32); ++i) {
+	for (unsigned i = 1; i < sizeof(dshot_capture_buffers[channel]) / sizeof(dshot_capture_buffers[channel][0]); ++i) {
 
 		// We can ignore the very first data point as it's the pulse before it starts.
 		if (i > 1) {
 
-			if (dshot_capture_buffer[i] == 0) {
+			if (dshot_capture_buffers[channel][i] == 0) {
 				// Once we get zeros we're through.
 				break;
 			}
 
 			// This seemss to work with dshot 150, 300, 600, 1200
 			// The values were found by trial and error to get the quantization just right.
-			const uint32_t bits = (dshot_capture_buffer[i] - previous + 5) / 20;
+			const uint32_t bits = (dshot_capture_buffers[channel][i] - previous + 5) / 20;
 
 			for (unsigned bit = 0; bit < bits; ++bit) {
 				value = value << 1;
@@ -209,7 +213,7 @@ unsigned calculate_period(void)
 			high = !high;
 		}
 
-		previous = dshot_capture_buffer[i];
+		previous = dshot_capture_buffers[channel][i];
 	}
 
 	if (shifted == 0) {
@@ -258,13 +262,9 @@ unsigned calculate_period(void)
 	return period;
 }
 
-int dshot_output_timer_deinit(unsigned channel)
-{
-	return io_timer_unallocate_channel(channel);
-}
-
 int dshot_output_timer_init(unsigned channel)
 {
+	io_timer_unallocate_channel(channel);
 	int ret = io_timer_channel_init(channel,
 					bidirectional_dshot_enabled ? IOTimerChanMode_DshotInverted : IOTimerChanMode_Dshot, NULL, NULL);
 
@@ -351,18 +351,15 @@ int up_dshot_init(uint32_t channel_mask, unsigned dshot_pwm_freq, bool enable_bi
 
 void up_dshot_trigger(void)
 {
+	if (_state != None) {
+		return;
+	}
+
+	_state = Trigger;
 
 	for (unsigned channel = 0; channel < MAX_TIMER_IO_CHANNELS; channel++) {
 		if (_channels_init_mask & (1 << channel)) {
-
-			// For bidirectional dshot we need to re-initialize the timers every time here.
-			// In normal mode, we just do it once.
-			int ret = OK;
-
-			if (bidirectional_dshot_enabled) {
-				dshot_output_timer_deinit(channel);
-				ret = dshot_output_timer_init(channel);
-			}
+			int ret = dshot_output_timer_init(channel);
 
 			if (ret != OK) {
 				// TODO: what to do here?
@@ -419,6 +416,13 @@ void do_capture(DMA_HANDLE handle, uint8_t status, void *arg)
 	(void)status;
 	(void)arg;
 
+	if (_state != Trigger) {
+		return;
+	}
+
+	_state = Capture;
+
+
 	for (unsigned timer = 0; timer < DSHOT_TIMERS; ++timer) {
 		if (_timers_init_mask & (1 << timer)) {
 			if (dshot_handler[timer].dma_handle != NULL) {
@@ -427,53 +431,75 @@ void do_capture(DMA_HANDLE handle, uint8_t status, void *arg)
 				dshot_handler[timer].dma_handle = NULL;
 			}
 
-			// TODO: this doesn't scale to more than 4 motors yet
-			unsigned capture_channel = _motor_to_capture;
-
-			dshot_handler[timer].dma_size = sizeof(dshot_capture_buffer);
-
-			// Instead of using the UP DMA channel, we need to use the CH1-4 channels.
-			// It turns out that we can infer the DMA channel index by starting from the UP channel -5.
-			unsigned timer_channel = timer_io_channels[capture_channel].timer_channel;
-
-			switch (timer_channel) {
-			case 1:
-				dshot_handler[timer].dma_handle = stm32_dmachannel(io_timers[timer].dshot.dmamap - 5 + 1);
-				break;
-
-			case 2:
-				dshot_handler[timer].dma_handle = stm32_dmachannel(io_timers[timer].dshot.dmamap - 5 + 2);
-				break;
-
-			case 3:
-				dshot_handler[timer].dma_handle = stm32_dmachannel(io_timers[timer].dshot.dmamap - 5 + 3);
-				break;
-
-			case 4:
-				dshot_handler[timer].dma_handle = stm32_dmachannel(io_timers[timer].dshot.dmamap - 5 + 4);
-				break;
-			}
-
-			memset(dshot_capture_buffer, 0, sizeof(dshot_capture_buffer));
-			up_clean_dcache((uintptr_t) dshot_capture_buffer,
-					(uintptr_t) dshot_capture_buffer +
-					sizeof(dshot_capture_buffer));
-
-			px4_stm32_dmasetup(dshot_handler[timer].dma_handle,
-					   io_timers[timer].base + STM32_GTIM_DMAR_OFFSET,
-					   (uint32_t) dshot_capture_buffer,
-					   sizeof(dshot_capture_buffer),
-					   DSHOT_BIDIRECTIONAL_DMA_SCR);
-
-			io_timer_unallocate_channel(capture_channel);
-			io_timer_channel_init(capture_channel, IOTimerChanMode_CaptureDMA, NULL, NULL);
-			io_timer_set_enable(true, IOTimerChanMode_CaptureDMA, 1 << capture_channel);
-
-			up_input_capture_set(capture_channel, Both, 0, NULL, NULL);
+			memset(dshot_capture_buffers, 0, sizeof(dshot_capture_buffers));
+			up_clean_dcache((uintptr_t) dshot_capture_buffers,
+					(uintptr_t) dshot_capture_buffers +
+					sizeof(dshot_capture_buffers));
 
 			io_timer_capture_update_dma_req(timer, false);
-			io_timer_set_capture_mode(timer, _dshot_frequency, capture_channel);
-			stm32_dmastart(dshot_handler[timer].dma_handle, NULL, NULL, false);
+
+			for (unsigned channel = 0; channel < 4; ++channel) {
+				dshot_capture_handlers[channel].dma_size = sizeof(dshot_capture_buffers[channel]);
+
+				// Instead of using the UP DMA channel, we need to use the CH1-4 channels.
+				// It turns out that we can infer the DMA channel index by starting from the UP channel -5.
+				unsigned timer_channel = timer_io_channels[channel].timer_channel;
+
+				switch (timer_channel) {
+				case 1:
+					dshot_capture_handlers[channel].dma_handle = stm32_dmachannel(io_timers[timer].dshot.dmamap - 5 + 1);
+					break;
+
+				case 2:
+					dshot_capture_handlers[channel].dma_handle = stm32_dmachannel(io_timers[timer].dshot.dmamap - 5 + 2);
+					break;
+
+				case 3:
+					dshot_capture_handlers[channel].dma_handle = stm32_dmachannel(io_timers[timer].dshot.dmamap - 5 + 3);
+					break;
+
+				case 4:
+					dshot_capture_handlers[channel].dma_handle = stm32_dmachannel(io_timers[timer].dshot.dmamap - 5 + 4);
+					break;
+				}
+
+				io_timer_unallocate_channel(channel);
+
+				unsigned offset = 0;
+
+				switch (timer_io_channels[channel].timer_channel) {
+				case 1:
+					offset = STM32_GTIM_CCR1_OFFSET;
+					break;
+
+				case 2:
+					offset = STM32_GTIM_CCR2_OFFSET;
+					break;
+
+				case 3:
+					offset = STM32_GTIM_CCR3_OFFSET;
+					break;
+
+				case 4:
+					offset = STM32_GTIM_CCR4_OFFSET;
+					break;
+				}
+
+				px4_stm32_dmasetup(dshot_capture_handlers[channel].dma_handle,
+						   io_timers[timer].base + offset,
+						   (uint32_t) dshot_capture_buffers[channel],
+						   sizeof(dshot_capture_buffers[channel]),
+						   DSHOT_BIDIRECTIONAL_DMA_SCR);
+
+				io_timer_channel_init(channel, IOTimerChanMode_CaptureDMA, NULL, NULL);
+				io_timer_set_enable(true, IOTimerChanMode_CaptureDMA, 1 << channel);
+
+				up_input_capture_set(channel, Both, 0, NULL, NULL);
+
+				io_timer_set_capture_mode(timer, _dshot_frequency, channel);
+				stm32_dmastart(dshot_capture_handlers[channel].dma_handle, NULL, NULL, false);
+			}
+
 			io_timer_capture_update_dma_req(timer, true);
 		}
 	}
@@ -486,51 +512,60 @@ void process_capture_results(void *arg)
 {
 	(void)arg;
 
+	if (_state != Capture) {
+		return;
+	}
+
+	_state = Collect;
+
+	up_invalidate_dcache((uintptr_t)dshot_capture_buffers,
+			     (uintptr_t)dshot_capture_buffers +
+			     sizeof(dshot_capture_buffers));
+
 	// In case DMA is still set up from the last capture, we clear that.
 	for (unsigned timer = 0; timer < DSHOT_TIMERS; ++timer) {
 		if (_timers_init_mask & (1 << timer)) {
-			if (dshot_handler[timer].dma_handle != NULL) {
-				stm32_dmastop(dshot_handler[timer].dma_handle);
-				stm32_dmafree(dshot_handler[timer].dma_handle);
-				dshot_handler[timer].dma_handle = NULL;
+
+			for (unsigned channel = 0; channel < 4; ++channel) {
+				if (dshot_capture_handlers[channel].dma_handle != NULL) {
+					stm32_dmastop(dshot_capture_handlers[channel].dma_handle);
+					stm32_dmafree(dshot_capture_handlers[channel].dma_handle);
+					dshot_capture_handlers[channel].dma_handle = NULL;
+				}
 			}
 		}
 	}
 
-	up_invalidate_dcache((uintptr_t)dshot_capture_buffer,
-			     (uintptr_t)dshot_capture_buffer +
-			     sizeof(dshot_capture_buffer));
+	for (unsigned channel = 0; channel < 4; channel++) {
 
-	const unsigned period = calculate_period();
+		const unsigned period = calculate_period(channel);
 
-	if (period == 0) {
-		// If the parsing failed, we get 0.
-		_erpms[_motor_to_capture] = 0;
+		if (period == 0) {
+			// If the parsing failed, we get 0.
+			_erpms[channel] = 0;
 
-	} else if (period == 65408) {
-		// For still, we get this magic 65408 value.
-		_erpms[_motor_to_capture] = 0;
+		} else if (period == 65408) {
+			// For still, we get this magic 65408 value.
+			_erpms[channel] = 0;
 
-	} else {
-		// from period in us to eRPM
-		_erpms[_motor_to_capture] = 1000000 * 60 / period;
-	}
+		} else {
+			// from period in us to eRPM
+			_erpms[channel] = 1000000 * 60 / period;
+		}
 
-	for (unsigned channel = 0; channel < MAX_TIMER_IO_CHANNELS; channel++) {
+
 		if (_channels_init_mask & (1 << channel)) {
 			io_timer_unallocate_channel(channel);
-			io_timer_channel_init(channel, IOTimerChanMode_DshotInverted, NULL, NULL);
+			io_timer_channel_init(channel,
+					      bidirectional_dshot_enabled ? IOTimerChanMode_DshotInverted : IOTimerChanMode_Dshot, NULL, NULL);
 		}
 	}
 
 	if (_erpm_callback != NULL) {
-		// Only publish every 4th time once all measurements have come in.
-		if (_motor_to_capture == 3) {
-			_erpm_callback(_erpms, 4, _erpm_callback_context);
-		}
+		_erpm_callback(_erpms, 4, _erpm_callback_context);
 	}
 
-	_motor_to_capture = (_motor_to_capture + 1) % 4;
+	_state = None;
 }
 
 /**

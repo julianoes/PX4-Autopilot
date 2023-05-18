@@ -594,6 +594,7 @@ int io_timer_set_capture_mode(uint8_t timer, unsigned dshot_pwm_freq, unsigned c
 
 	rPSC(timer) = ((int)(io_timers[timer].clock_freq / (dshot_pwm_freq * 5 / 4)) / DSHOT_MOTOR_PWM_BIT_WIDTH) - 1;
 
+	rDCR(timer) = 0;
 
 
 	switch (timer_io_channels[channel].timer_channel) {
@@ -603,8 +604,6 @@ int io_timer_set_capture_mode(uint8_t timer, unsigned dshot_pwm_freq, unsigned c
 		rCCMR1(timer) |= (GTIM_CCMR_CCS_CCIN1  << GTIM_CCMR1_CC1S_SHIFT);
 		rCR1(timer) |= GTIM_CR1_CEN;
 		rCCER(timer) |= (GTIM_CCER_CC1E | GTIM_CCER_CC1P | GTIM_CCER_CC1NP);
-// We need to pass the offset of the register to read by DMA divided by 4.
-		rDCR(timer)  = 0xD; // 0x34 / 4, offset for CC1
 		break;
 
 	case 2:
@@ -612,7 +611,6 @@ int io_timer_set_capture_mode(uint8_t timer, unsigned dshot_pwm_freq, unsigned c
 		rCCMR1(timer) |= (GTIM_CCMR_CCS_CCIN1  << GTIM_CCMR1_CC2S_SHIFT);
 		rCR1(timer) |= GTIM_CR1_CEN;
 		rCCER(timer) |= (GTIM_CCER_CC2E | GTIM_CCER_CC2P | GTIM_CCER_CC2NP);
-		rDCR(timer)  = 0xE; // 0x38 / 4, offset for CC2
 		break;
 
 	case 3:
@@ -620,7 +618,6 @@ int io_timer_set_capture_mode(uint8_t timer, unsigned dshot_pwm_freq, unsigned c
 		rCCMR2(timer) |= (GTIM_CCMR_CCS_CCIN1  << GTIM_CCMR2_CC3S_SHIFT);
 		rCR1(timer) |= GTIM_CR1_CEN;
 		rCCER(timer) |= (GTIM_CCER_CC3E | GTIM_CCER_CC3P | GTIM_CCER_CC3NP);
-		rDCR(timer)  = 0xF; // 0x3C / 4, offset for CC3
 		break;
 
 	case 4:
@@ -628,7 +625,6 @@ int io_timer_set_capture_mode(uint8_t timer, unsigned dshot_pwm_freq, unsigned c
 		rCCMR2(timer) |= (GTIM_CCMR_CCS_CCIN1  << GTIM_CCMR2_CC4S_SHIFT);
 		rCR1(timer) |= GTIM_CR1_CEN;
 		rCCER(timer) |= (GTIM_CCER_CC4E | GTIM_CCER_CC4P | GTIM_CCER_CC4NP);
-		rDCR(timer)  = 0x10; // 0x40 / 4, offset for CC4
 		break;
 	}
 

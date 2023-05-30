@@ -84,8 +84,9 @@ parameters:
                 38: Roll 90°, Pitch 68°, Yaw 293°
                 39: Pitch 315°
                 40: Roll 90°, Pitch 315°
+                41: Pitch 10°
             min: -1
-            max: 40
+            max: 41
             default: -1
             num_instances: *max_num_sensor_instances
             instance_start: 0
@@ -276,8 +277,9 @@ parameters:
                 38: Roll 90°, Pitch 68°, Yaw 293°
                 39: Pitch 315°
                 40: Roll 90°, Pitch 315°
+                41: Pitch 10°
             min: -1
-            max: 40
+            max: 41
             default: -1
             num_instances: *max_num_sensor_instances
             instance_start: 0
@@ -393,8 +395,9 @@ parameters:
                 38: Roll 90°, Pitch 68°, Yaw 293°
                 39: Pitch 315°
                 40: Roll 90°, Pitch 315°
+                41: Pitch 10°
             min: -1
-            max: 40
+            max: 41
             default: -1
             num_instances: *max_num_sensor_instances
             instance_start: 0

@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# @name Custom model
+#
+# @type Custom
+# @class Copter
+#
+# @output MAIN1 motor 1
+# @output MAIN2 motor 2
+#
+# @maintainer John Doe <johndoe@gmail.com>
+#
+
+. ${R}etc/init.d/rc.mc_defaults
+
+# Define custom airframe parameters below.
+
+# We select multirotor for now but this could potentially
+# be custom.
+param set-default CA_AIRFRAME 0
+param set-default CA_ROTOR_COUNT 4
+
+param set-default CA_ROTOR0_PX 0.15
+param set-default CA_ROTOR0_PY 0.15
+param set-default CA_ROTOR1_PX -0.15
+param set-default CA_ROTOR1_PY -0.15
+param set-default CA_ROTOR2_PX 0.15
+param set-default CA_ROTOR2_PY -0.15
+param set-default CA_ROTOR2_KM -0.05
+param set-default CA_ROTOR3_PX -0.15
+param set-default CA_ROTOR3_PY 0.15
+param set-default CA_ROTOR3_KM -0.05
+
+param set-default PWM_MAIN_FUNC1 101
+param set-default PWM_MAIN_FUNC2 102
+param set-default PWM_MAIN_FUNC3 103
+param set-default PWM_MAIN_FUNC4 104

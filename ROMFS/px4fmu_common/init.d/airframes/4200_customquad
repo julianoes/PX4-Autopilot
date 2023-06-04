@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# @name Custom quadcopter
+#
+# @type Quadrotor x
+# @class Copter
+#
+# @maintainer Julian Oes <julian@oes.ch>
+#
+
+. ${R}etc/init.d/rc.mc_defaults
+
+param set-default CA_ROTOR_COUNT 4
+param set-default CA_ROTOR0_PX 0.15
+param set-default CA_ROTOR0_PY 0.15
+param set-default CA_ROTOR1_PX -0.15
+param set-default CA_ROTOR1_PY -0.15
+param set-default CA_ROTOR2_PX 0.15
+param set-default CA_ROTOR2_PY -0.15
+param set-default CA_ROTOR2_KM -0.05
+param set-default CA_ROTOR3_PX -0.15
+param set-default CA_ROTOR3_PY 0.15
+param set-default CA_ROTOR3_KM -0.05
+
+param set-default SENS_BOARD_Y_OFF 10.0
+
+param set-default EKF2_IMU_POS_X 0.005
+param set-default EKF2_IMU_POS_Y 0.0
+param set-default EKF2_IMU_POS_Z 0.034

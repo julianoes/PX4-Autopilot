@@ -162,6 +162,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_set_position_target_global_int(msg);
 		break;
 
+	case MAVLINK_MSG_ID_ATTITUDE_TARGET:
+		handle_message_attitude_target(msg);
+		break;
+
 	case MAVLINK_MSG_ID_SET_ATTITUDE_TARGET:
 		handle_message_set_attitude_target(msg);
 		break;
@@ -1505,6 +1509,23 @@ void MavlinkReceiver::fill_thrust(float *thrust_body_array, uint8_t vehicle_type
 		break;
 	}
 }
+
+void
+MavlinkReceiver::handle_message_attitude_target(mavlink_message_t *msg)
+{
+	mavlink_attitude_target_t attitude_target;
+	mavlink_msg_attitude_target_decode(msg, &attitude_target);
+
+	matrix::Eulerf euler{matrix::Quatf(attitude_target.q)};
+
+	printf("%d received attitude sp from %d: %.1f, %.1f, %.1f\n",
+	       mavlink_system.sysid,
+	       msg->sysid,
+	       (double)math::degrees(euler(0)),
+	       (double)math::degrees(euler(1)),
+	       (double)math::degrees(euler(2)));
+}
+
 
 void
 MavlinkReceiver::handle_message_set_attitude_target(mavlink_message_t *msg)

@@ -35,3 +35,18 @@ param set-default PWM_MAIN_FUNC1 101
 param set-default PWM_MAIN_FUNC2 102
 param set-default PWM_MAIN_FUNC3 103
 param set-default PWM_MAIN_FUNC4 104
+
+
+# We initiate the MAVLink connection from vehicle with sysid 2 to the vehicle with sysid 3.
+udp_local_port_mav2=17002
+udp_local_port_mav3=17003
+if param compare MAV_SYS_ID 2
+then
+	mavlink start -u $udp_local_port_mav2 -r 400000 -m custom -o $udp_local_port_mav3
+	mavlink stream -r 10 -s ATTITUDE_TARGET -u $udp_local_port_mav2
+
+elif param compare MAV_SYS_ID 3
+then
+	mavlink start -u $udp_local_port_mav3 -r 400000 -m custom -o $udp_local_port_mav2
+	mavlink stream -r 10 -s ATTITUDE_TARGET -u $udp_local_port_mav3
+fi

@@ -122,6 +122,8 @@ private:
 
 	transition_result_t disarm(arm_disarm_reason_t calling_reason, bool forced = false);
 
+	void send_arm_or_disarm_command_to_other_vehicle(bool should_arm);
+
 	void battery_status_check();
 
 	void control_status_leds(bool changed, const uint8_t battery_warning);

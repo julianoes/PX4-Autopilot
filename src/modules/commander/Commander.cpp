@@ -585,6 +585,8 @@ transition_result_t Commander::arm(arm_disarm_reason_t calling_reason, bool run_
 
 		_status_changed = true;
 
+		send_arm_or_disarm_command_to_other_vehicle(true);
+
 	} else if (arming_res == TRANSITION_DENIED) {
 		tune_negative(true);
 	}
@@ -631,12 +633,43 @@ transition_result_t Commander::disarm(arm_disarm_reason_t calling_reason, bool f
 
 		_status_changed = true;
 
+		send_arm_or_disarm_command_to_other_vehicle(false);
+
 	} else if (arming_res == TRANSITION_DENIED) {
 		tune_negative(true);
 	}
 
 	return arming_res;
 }
+
+void Commander::send_arm_or_disarm_command_to_other_vehicle(bool should_arm)
+{
+	uORB::SubscriptionData<vehicle_status_s> vehicle_status_sub{ORB_ID(vehicle_status)};
+
+	// System 2 sends command to 3.
+	if (vehicle_status_sub.get().system_id != 2) {
+		return;
+	}
+
+	// We force it because the other vehicle just has to follow.
+	const float param2_force = 21196.f;
+
+	vehicle_command_s vcmd{};
+	vcmd.command = vehicle_command_s::VEHICLE_CMD_COMPONENT_ARM_DISARM;
+	vcmd.param1 = static_cast<float>(should_arm ? vehicle_command_s::ARMING_ACTION_ARM :
+					 vehicle_command_s::ARMING_ACTION_DISARM);
+	vcmd.param2 = param2_force;
+
+	vcmd.source_system = vehicle_status_sub.get().system_id;
+	vcmd.source_component = vehicle_status_sub.get().component_id;
+	vcmd.target_system = 3;
+	vcmd.target_component = 1;
+
+	uORB::Publication<vehicle_command_s> vcmd_pub{ORB_ID(vehicle_command)};
+	vcmd.timestamp = hrt_absolute_time();
+	vcmd_pub.publish(vcmd);
+}
+
 
 Commander::Commander() :
 	ModuleParams(nullptr)

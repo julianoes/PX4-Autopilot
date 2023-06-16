@@ -34,7 +34,7 @@ function spawn_model() {
 
 	pushd "$working_dir" &>/dev/null
 	echo "starting instance $N in $(pwd)"
-	$build_path/bin/px4 -i $N -d "$build_path/etc" >out.log 2>err.log &
+	$build_path/bin/px4 -i $N -d "$build_path/etc" &
 
 	set --
 	set -- ${@} ${src_path}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/scripts/jinja_gen.py

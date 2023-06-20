@@ -39,3 +39,22 @@ if [ "$PX4_SIMULATOR" = "sihsim" ]; then
 	mavlink stream -r 200 -s HIL_ACTUATOR_CONTROLS -u  $udp_sihsim_port_local
 	mavlink stream -r 25 -s HIL_STATE_QUATERNION -u  $udp_sihsim_port_local
 fi
+
+if [ "$INTER_VEHICLE_MAVLINK" = "yes" ]
+then
+	# We initiate the MAVLink connection from vehicle with sysid 2 to the vehicle with sysid 3.
+	udp_local_port_mav2=17002
+	udp_local_port_mav3=17003
+	if param compare MAV_SYS_ID 2
+	then
+		mavlink start -u $udp_local_port_mav2 -r 400000 -m custom -o $udp_local_port_mav3
+		mavlink stream -r 10 -s ATTITUDE_TARGET -u $udp_local_port_mav2
+
+	fi
+
+	if param compare MAV_SYS_ID 3
+	then
+		mavlink start -u $udp_local_port_mav3 -r 400000 -m custom -o $udp_local_port_mav2
+		mavlink stream -r 10 -s ATTITUDE_TARGET -u $udp_local_port_mav3
+	fi
+fi

@@ -88,10 +88,16 @@ bool FlightTaskOrbit::applyCommandParameters(const vehicle_command_s &command, b
 		success = false;
 	}
 
+#if 0
+
 	// commanded heading behaviour
 	if (PX4_ISFINITE(command.param3)) {
 		_yaw_behaviour = command.param3;
 	}
+
+#else
+	_yaw_behaviour = 3.0f; // ORBIT_YAW_BEHAVIOUR_HOLD_FRONT_TANGENT_TO_CIRCLE;
+#endif
 
 	// save current yaw estimate for ORBIT_YAW_BEHAVIOUR_HOLD_INITIAL_HEADING
 	_initial_heading = _yaw;

@@ -172,7 +172,7 @@ bool FlightTaskOrbit::activate(const trajectory_setpoint_s &last_setpoint)
 {
 	bool ret = FlightTaskManualAltitude::activate(last_setpoint);
 	_orbit_radius = _radius_min;
-	_orbit_velocity = 1.f;
+	_orbit_velocity = 20.f;
 	_center = _position;
 	_initial_heading = _yaw;
 	_slew_rate_yaw.setForcedValue(_yaw);

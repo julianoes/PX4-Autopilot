@@ -70,7 +70,7 @@ protected:
 private:
 	/* TODO: Should be controlled by params */
 	static constexpr float _radius_min = 1.f;
-	static constexpr float _velocity_max = 10.f;
+	static constexpr float _velocity_max = 20.f;
 	static constexpr float _acceleration_max = 2.f;
 	static constexpr float _horizontal_acceptance_radius = 2.f;
 

@@ -114,7 +114,8 @@ private:
 	/** generates yaw setpoints to control the vehicle's heading */
 	void _generate_circle_yaw_setpoints();
 
-	float _orbit_velocity{};
+	float _set_orbit_velocity{};
+	float _current_orbit_velocity{};
 	float _orbit_radius{};
 	matrix::Vector3f _center; /**< local frame coordinates of the center point */
 

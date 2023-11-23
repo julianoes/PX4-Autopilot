@@ -4,7 +4,7 @@
 #------------------------------------------------------------------------------
 
 # Start ADS-B receiver mavlink connection if console not present
-if [ ! -e /dev/console ]
-then
-	mavlink start -d /dev/ttyS4 -b 57600 -m minimal
-fi
+#if [ ! -e /dev/console ]
+#then
+#	mavlink start -d /dev/ttyS4 -b 57600 -m minimal
+#fi

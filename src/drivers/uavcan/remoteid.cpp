@@ -32,11 +32,13 @@
  ****************************************************************************/
 
 #include "remoteid.hpp"
+#include <lib/open_drone_id/open_drone_id_translations.hpp>
 
 UavcanRemoteIDController::UavcanRemoteIDController(uavcan::INode &node) :
 	ModuleParams(nullptr),
-    _timer(node),
-    _node(node)
+	_timer(node),
+	_node(node),
+	_uavcan_pub_remoteid_basicid(node)
 {
 }
 
@@ -50,6 +52,22 @@ int UavcanRemoteIDController::init()
 
 void UavcanRemoteIDController::periodic_update(const uavcan::TimerEvent &)
 {
-    printf("running\n");
-}
+	if (!_vehicle_status_sub.update()) {
+		return;
+	}
 
+	dronecan::remoteid::BasicID basic_id {};
+	// basic_id.id_or_mac // supposedly only used for drone ID data from other UAs
+	basic_id.id_type = dronecan::remoteid::BasicID::ODID_ID_TYPE_SERIAL_NUMBER;
+	basic_id.ua_type = static_cast<uint8_t>(open_drone_id_translations::odidTypeForMavType(
+			_vehicle_status_sub.get().system_type));
+
+	// uas_id: UAS (Unmanned Aircraft System) ID following the format specified by id_type
+	// TODO: MAV_ODID_ID_TYPE_SERIAL_NUMBER needs to be ANSI/CTA-2063 format
+
+	char uas_id[20] = {};
+	board_get_px4_guid_formated((char *)(uas_id), sizeof(uas_id));
+	basic_id.uas_id = uas_id;
+
+	_uavcan_pub_remoteid_basicid.broadcast(basic_id);
+}

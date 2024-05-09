@@ -274,7 +274,7 @@ private:
 	UavcanSafetyState         	_safety_state_controller;
 #endif
 #if defined(CONFIG_UAVCAN_REMOTEID_CONTROLLER)
-    UavcanRemoteIDController _remoteid_controller;
+	UavcanRemoteIDController _remoteid_controller;
 #endif
 #if defined(CONFIG_UAVCAN_RGB_CONTROLLER)
 	UavcanRGBController             _rgbled_controller;

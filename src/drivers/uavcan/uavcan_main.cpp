@@ -97,7 +97,7 @@ UavcanNode::UavcanNode(uavcan::ICanDriver &can_driver, uavcan::ISystemClock &sys
 	_safety_state_controller(_node),
 #endif
 #if defined(CONFIG_UAVCAN_REMOTEID_CONTROLLER)
-    _remoteid_controller(_node),
+	_remoteid_controller(_node),
 #endif
 #if defined(CONFIG_UAVCAN_RGB_CONTROLLER)
 	_rgbled_controller(_node),
@@ -562,11 +562,11 @@ UavcanNode::init(uavcan::NodeID node_id, UAVCAN_DRIVER::BusEvent &bus_events)
 	}
 
 #if defined(CONFIG_UAVCAN_REMOTEID_CONTROLLER)
-    ret = _remoteid_controller.init();
+	ret = _remoteid_controller.init();
 
-    if (ret < 0) {
-        return ret;
-    }
+	if (ret < 0) {
+		return ret;
+	}
 
 #endif
 

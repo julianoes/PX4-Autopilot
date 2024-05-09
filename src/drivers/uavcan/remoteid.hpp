@@ -33,7 +33,8 @@
 
 #pragma once
 
-#include <uORB/topics/actuator_armed.h>
+#include <uORB/topics/vehicle_status.h>
+#include <uORB/Subscription.hpp>
 
 #include <uavcan/uavcan.hpp>
 #include <dronecan/remoteid/BasicID.hpp>
@@ -49,15 +50,19 @@ public:
 	int init();
 
 private:
-    typedef uavcan::MethodBinder<UavcanRemoteIDController *, void (UavcanRemoteIDController::*)(const uavcan::TimerEvent &)>
-            TimerCbBinder;
+	typedef uavcan::MethodBinder<UavcanRemoteIDController *, void (UavcanRemoteIDController::*)(const uavcan::TimerEvent &)>
+	TimerCbBinder;
 
-	static constexpr unsigned MAX_RATE_HZ = 10;
-    uavcan::TimerEventForwarder<TimerCbBinder> _timer;
+	static constexpr unsigned MAX_RATE_HZ = 1;
+	uavcan::TimerEventForwarder<TimerCbBinder> _timer;
 
 	void periodic_update(const uavcan::TimerEvent &);
 
 	uavcan::INode &_node;
+
+	uORB::SubscriptionData<vehicle_status_s> _vehicle_status_sub{ORB_ID(vehicle_status)};
+
+	uavcan::Publisher<dronecan::remoteid::BasicID> _uavcan_pub_remoteid_basicid;
 
 	//DEFINE_PARAMETERS(
 	//	(ParamInt<px4::params::UAVCAN_LGT_ANTCL>) _param_mode_anti_col,

@@ -354,6 +354,10 @@ if(EXISTS ${BOARD_DEFCONFIG})
 		add_definitions(-DCONSTRAINED_FLASH)
 	endif()
 
+	if(EXTERNAL_FLASH)
+		set(px4_external_flash "1" CACHE INTERNAL "external flash" FORCE)
+	endif()
+
 	if(NO_HELP)
 		add_definitions(-DCONSTRAINED_FLASH_NO_HELP="https://docs.px4.io/main/en/modules/modules_main.html")
 	endif()

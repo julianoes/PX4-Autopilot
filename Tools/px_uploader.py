@@ -98,6 +98,7 @@ class firmware(object):
 
     desc = {}
     image = bytes()
+    extflash_image = bytes()
     crctab = array.array('I', [
         0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
         0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988, 0x09b64c2b, 0x7eb17cbd, 0xe7b82d07, 0x90bf1d91,
@@ -146,6 +147,13 @@ class firmware(object):
         while ((len(self.image) % 4) != 0):
             self.image.extend(b'\xff')
 
+        if ('extflash_image' in self.desc and len(self.desc['extflash_image']) > 0):
+            self.extflash_image = bytearray(zlib.decompress(base64.b64decode(self.desc['extflash_image'])))
+
+            # pad external flash image to 4-byte length
+            while ((len(self.extflash_image) % 4) != 0):
+                self.extflash_image.extend(b'\xff')
+
     def property(self, propname):
         return self.desc[propname]
 
@@ -158,6 +166,12 @@ class firmware(object):
     def crc(self, padlen):
         state = self.__crc32(self.image, int(0))
         for _ in range(len(self.image), (padlen - 1), 4):
+            state = self.__crc32(self.crcpad, state)
+        return state
+
+    def extflash_crc(self, padlen):
+        state = self.__crc32(self.extflash_image, int(0))
+        for _ in range(len(self.extflash_image), (padlen - 1), 4):
             state = self.__crc32(self.crcpad, state)
         return state
 
@@ -190,6 +204,10 @@ class uploader:
     SET_BOOT_DELAY  = b'\x2d'     # rev5+  , set boot delay
     GET_CHIP_DES    = b'\x2e'     # rev5+  , get chip description in ASCII
     GET_VERSION     = b'\x2f'     # rev5+  , get bootloader version in ASCII
+    EXTFLASH_ERASE  = b'\x34'     # erase sectors from external flash
+    EXTFLASH_PROG_MULTI = b'\x35' # write bytes at external flash program address and increment
+    EXTFLASH_READ_MULTI = b'\x36' # read bytes at external flash program address and increment
+    EXTFLASH_GET_CRC = b'\x37'    # compute and return CRC of data in external flash
     CHIP_FULL_ERASE = b'\x40'     # full erase of flash, rev6+
     MAX_DES_LENGTH  = 20
 
@@ -201,6 +219,8 @@ class uploader:
     INFO_BOARD_ID   = b'\x02'        # board type
     INFO_BOARD_REV  = b'\x03'        # board revision
     INFO_FLASH_SIZE = b'\x04'        # max firmware size in bytes
+    INFO_EXTFLASH_SIZE = b'\x06'        # available external flash size in bytes
+    BL_VERSION      = b'\x07'        # get bootloader version, e.g. major.minor.patch.githash (up to 20 chars)
 
     PROG_MULTI_MAX  = 252            # protocol max is 255, must be multiple of 4
     READ_MULTI_MAX  = 252            # protocol max is 255
@@ -280,6 +300,11 @@ class uploader:
     def __recv_int(self):
         raw = self.__recv(4)
         val = struct.unpack("<I", raw)
+        return val[0]
+
+    def __recv_uint8(self):
+        raw = self.__recv(1)
+        val = struct.unpack("<B", raw)
         return val[0]
 
     def __getSync(self, doFlush=True):
@@ -433,8 +458,6 @@ class uploader:
 
     # send the CHIP_ERASE command and wait for the bootloader to become ready
     def __erase(self, label):
-        print(f"Windowed mode: {self.ackWindowedMode}")
-        print("\n", end='')
 
         if self.force_erase:
             print("Trying force erase of full chip...\n")
@@ -459,8 +482,9 @@ class uploader:
 
             if self.__trySync():
                 self.__drawProgressBar(label, 10.0, 10.0)
+                print("")
                 if self.force_erase:
-                    print("\nForce erase done.\n")
+                    print("Force erase done.\n")
                 return
 
         if self.force_erase:
@@ -506,6 +530,16 @@ class uploader:
         self.__getSync()
         return True
 
+    def __program_multi_extflash(self, data):
+
+        length = len(data).to_bytes(1, byteorder='big')
+
+        self.__send(uploader.EXTFLASH_PROG_MULTI)
+        self.__send(length)
+        self.__send(data)
+        self.__send(uploader.EOC)
+        self.__getSync()
+
     # send the reboot command
     def __reboot(self):
         self.__send(uploader.REBOOT +
@@ -523,7 +557,6 @@ class uploader:
     # upload code
     def __program(self, label, fw):
         self.__probe(False)
-        print("\n", end='')
         code = fw.image
         groups = self.__split_len(code, uploader.PROG_MULTI_MAX)
         # Give imedate feedback
@@ -550,10 +583,10 @@ class uploader:
         self.__ackSyncWindow(self.window)
         self.window = 0
         self.__drawProgressBar(label, 100, 100)
+        print("")
 
     # verify code
     def __verify_v2(self, label, fw):
-        print("\n", end='')
         self.__send(uploader.CHIP_VERIFY +
                     uploader.EOC)
         self.__getSync()
@@ -567,9 +600,9 @@ class uploader:
             if (not self.__verify_multi(bytes)):
                 raise RuntimeError("Verification failed")
         self.__drawProgressBar(label, 100, 100)
+        print("")
 
     def __verify_v3(self, label, fw):
-        print("\n", end='')
         self.__drawProgressBar(label, 1, 100)
         expect_crc = fw.crc(self.fw_maxsize)
         self.__send(uploader.GET_CRC + uploader.EOC)
@@ -581,12 +614,102 @@ class uploader:
             print("Got      0x%x" % report_crc)
             raise RuntimeError("Program CRC failed")
         self.__drawProgressBar(label, 100, 100)
+        print("")
 
     def __set_boot_delay(self, boot_delay):
         self.__send(uploader.SET_BOOT_DELAY +
                     struct.pack("b", boot_delay) +
                     uploader.EOC)
         self.__getSync()
+
+    # verify multiple bytes in flash
+    def __verify_multi(self, data):
+
+        length = len(data).to_bytes(1, byteorder='big')
+
+        self.__send(uploader.READ_MULTI)
+        self.__send(length)
+        self.__send(uploader.EOC)
+        self.port.flush()
+        programmed = self.__recv(len(data))
+        if programmed != data:
+            print("got    " + binascii.hexlify(programmed))
+            print("expect " + binascii.hexlify(data))
+            return False
+        self.__getSync()
+        return True
+
+    def __erase_extflash(self, label, fw):
+
+        self.__send(uploader.EXTFLASH_ERASE +
+                    len(fw.extflash_image).to_bytes(4, byteorder='little') +
+                    uploader.EOC)
+
+        self.__getSync()
+        last_pct = 0
+        while True:
+            if last_pct < 90:
+                pct = self.__recv_uint8()
+                if last_pct != pct:
+                    self.__drawProgressBar(label, pct, 100)
+                    last_pct = pct
+            elif self.__trySync():
+                self.__drawProgressBar(label, 10.0, 10.0)
+                print("")
+                return
+
+    def __program_extflash(self, label, fw):
+
+        groups = self.__split_len(fw.extflash_image, uploader.PROG_MULTI_MAX)
+
+        uploadProgress = 0
+        for bytes in groups:
+            self.__program_multi_extflash(bytes)
+
+            # Print upload progress (throttled, so it does not delay upload progress)
+            uploadProgress += 1
+            if uploadProgress % 32 == 0:
+                self.__drawProgressBar(label, uploadProgress, len(groups))
+        self.__drawProgressBar(label, 100, 100)
+        print("")
+
+    def __verify_extflash(self, label, fw):
+        size_bytes = len(fw.extflash_image).to_bytes(4, byteorder='little')
+        self.__drawProgressBar(label, 1, 100)
+
+        expect_crc = fw.extflash_crc(len(fw.extflash_image))
+        self.__send(uploader.EXTFLASH_GET_CRC +
+                    size_bytes + uploader.EOC)
+
+        # crc can be slow, give it 10s
+        deadline = time.time() + 10.0
+        while time.time() < deadline:
+
+            # Draw progress bar
+            estimatedTimeRemaining = deadline-time.time()
+            if estimatedTimeRemaining >= 4.0:
+                self.__drawProgressBar(label, 10.0-estimatedTimeRemaining, 4.0)
+            else:
+                self.__drawProgressBar(label, 5.0, 5.0)
+                sys.stdout.write(" (timeout: %d seconds) " % int(deadline-time.time()))
+                sys.stdout.flush()
+
+            try:
+                report_crc = self.__recv_int()
+                break
+            except Exception:
+                continue
+
+        if time.time() >= deadline:
+            raise RuntimeError("Program CRC timed out")
+
+        self.__getSync()
+        if report_crc != expect_crc:
+            print("\nExpected 0x%x" % expect_crc)
+            print("Got      0x%x" % report_crc)
+            raise RuntimeError("Program CRC failed")
+        self.__drawProgressBar(label, 100, 100)
+        print("")
 
     # get basic data about the board
     def identify(self):
@@ -723,6 +846,16 @@ class uploader:
                                    "If you know you that the board does not have the silicon errata, use\n"
                                    "this script with --force, or update the bootloader. If you are invoking\n"
                                    "upload using make, you can use force-upload target to force the upload.\n")
+
+        print(f"Windowed mode: {self.ackWindowedMode}")
+
+        if (len(fw.extflash_image) > 0):
+            print("\nExternal flash:")
+            self.__erase_extflash("Erase  ", fw)
+            self.__program_extflash("Program", fw)
+            self.__verify_extflash("Verify ", fw)
+            print("\nInternal flash:")
+
         self.__erase("Erase  ")
         self.__program("Program", fw)
 

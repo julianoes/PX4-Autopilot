@@ -168,6 +168,10 @@ SECTIONS
 		_einit = ABSOLUTE(.);
 	} > FLASH
 
+	/* External Flash area if defined */
+	/*.extflash : ALIGN(4) SUBALIGN(4) */
+	/*{ */
+	/*} > EXT_FLASH*/
 
 	.ARM.extab : {
 		*(.ARM.extab*)

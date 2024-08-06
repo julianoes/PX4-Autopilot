@@ -213,12 +213,12 @@
 
 /* UART/USART */
 
-// UART2 -> /dev/ttyS0
-// USART3 -> /dev/ttyS1
-// UART4 -> /dev/ttyS2
-// USART6 -> /dev/ttyS3
-// UART7 -> /dev/ttyS4
-// UART8 -> /dev/ttyS5
+// USART2 -> /dev/ttyS0 -> Telem1
+// USART3 -> /dev/ttyS1 -> GPS1
+// UART4 -> /dev/ttyS2 -> GPS2
+// USART6 -> /dev/ttyS3 -> Telem2
+// UART7 -> /dev/ttyS4 -> to Secondary
+// UART8 -> /dev/ttyS5 -> console / ping module
 
 #define GPIO_USART2_TX   GPIO_USART2_TX_2      /* PD5 */
 #define GPIO_USART2_RX   GPIO_USART2_RX_2      /* PD6 */

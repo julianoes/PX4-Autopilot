@@ -40,12 +40,10 @@ PX4Magnetometer::PX4Magnetometer(uint32_t device_id, enum Rotation rotation) :
 	_device_id{device_id},
 	_rotation{rotation}
 {
-	printf("mag ctor\n");
 }
 
 PX4Magnetometer::~PX4Magnetometer()
 {
-	printf("mag dtor\n");
 	_sensor_pub.unadvertise();
 }
 

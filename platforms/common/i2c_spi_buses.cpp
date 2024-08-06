@@ -612,7 +612,6 @@ int I2CSPIDriverBase::module_start(const BusCLIArguments &cli, BusInstanceIterat
 	bool started = false;
 
 	while (iterator.next()) {
-		printf("next it\n");
 		if (iterator.instance()) {
 			PX4_WARN("Already running on bus %i", iterator.bus());
 			continue;
@@ -644,9 +643,7 @@ int I2CSPIDriverBase::module_start(const BusCLIArguments &cli, BusInstanceIterat
 		// initialize the object and bus on the work queue thread - this will also probe for the device
 		px4::WorkItemSingleShot initializer(wq_config, initializer_trampoline, &initializer_data);
 		initializer.ScheduleNow();
-		printf("before wait\n");
 		initializer.wait();
-		printf("after wait\n");
 		I2CSPIDriverBase *instance = initializer_data.instance;
 
 		if (!instance) {
@@ -709,8 +706,6 @@ int I2CSPIDriverBase::module_start(const BusCLIArguments &cli, BusInstanceIterat
 		case BOARD_INVALID_BUS:
 			break;
 		}
-
-		printf("down here\n");
 	}
 
 	if (!started && !cli.quiet_start) {

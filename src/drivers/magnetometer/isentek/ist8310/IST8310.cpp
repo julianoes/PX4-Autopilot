@@ -87,19 +87,15 @@ int IST8310::probe()
 {
 	uint8_t id = RegisterRead(Register::WAI);
 
-#if 1
 	if (id != Device_ID) {
 		DEVICE_DEBUG("unexpected WAI 0x%02x", id);
 
 		// Apparently, the IST8310's WHOAMI register is writeable. Presumably,
 		// this can get corrupted by bus noise. It is only reset if powered off
 		// for 30s or by a reset.
-		printf("RegisterWrite!\n");
 		RegisterWrite(Register::CNTL2, CNTL2_BIT::SRST);
-		printf("RegisterWrite done!\n");
 
 		auto start_time = hrt_absolute_time();
-		printf("start time: %llu!\n", start_time);
 
 		while (hrt_elapsed_time(&start_time) < 50_ms) {
 			px4_usleep(10'000);
@@ -112,7 +108,6 @@ int IST8310::probe()
 
 		return PX4_ERROR;
 	}
-#endif
 
 	return PX4_OK;
 }

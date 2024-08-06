@@ -3,25 +3,25 @@
 # Board specific sensors init
 #------------------------------------------------------------------------------
 # TODO: start all three instances
-#board_adc start
+board_adc start
 
 
 # SPI1, SPI2 isolated
 # SPI4 fixed
 
 # SPI1
-#ms5611 -s -b 1 start -c 13
-#icm42688p -s -b 1 -R 27 -q start -c 9
-#
-## SPI2
-#icm42688p -s -b 2 -R 2 -q start -c 14
-#rm3100 -s -b 2 -R 6 start -c 15
-#
-#
-## SPI4
-#if ! icm20649 -s -b 4 -q -R 12 start -c 5
-#then
-#	icm45686 -s -b 4 -R 4 start -c 5
-#fi
-#ms5611 -s -b 4 start -c 2
-#
+ms5611 -s -b 1 start -c 13
+icm42688p -s -b 1 -R 27 -q start -c 9
+
+# SPI2
+icm42688p -s -b 2 -R 2 -q start -c 14
+rm3100 -s -b 2 -R 6 start -c 15
+
+
+# SPI4
+if ! icm20649 -s -b 4 -q -R 12 start -c 5
+then
+	icm45686 -s -b 4 -R 4 start -c 5
+fi
+ms5611 -s -b 4 start -c 2
+

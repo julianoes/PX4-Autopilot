@@ -58,3 +58,8 @@ __EXPORT void stm32_usbsuspend(FAR struct usbdev_s *dev, bool resume)
 {
 	uinfo("resume: %d\n", resume);
 }
+
+int board_read_VBUS_state(void)
+{
+	return BOARD_ADC_USB_VALID ? 0 : -1;
+}

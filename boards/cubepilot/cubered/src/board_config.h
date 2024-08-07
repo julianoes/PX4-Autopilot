@@ -135,20 +135,12 @@
 /* 3 timers for PWM out */
 #define BOARD_NUM_IO_TIMERS 3
 
-/* USB
- *  OTG FS: PE4  OTG_FS_VBUS VBUS sensing
- */
-#define GPIO_OTGFS_VBUS         /* PE4 */ (GPIO_INPUT|GPIO_PULLDOWN|GPIO_SPEED_100MHz|GPIO_PORTE|GPIO_PIN4)
+/* USB OTG VBUS is not connected, we use GPIO_nVDD_USB_VALID instead to determine USB being connected. */
 
 /* High-resolution timer */
 #define HRT_TIMER               12  /* use timer12 for the HRT */
 #define HRT_TIMER_CHANNEL       1  /* use capture/compare channel 1 */
 
-/* By Providing BOARD_ADC_USB_CONNECTED (using the px4_arch abstraction)
- * this board support the ADC system_power interface, and therefore
- * provides the true logic GPIO BOARD_ADC_xxxx macros.
- */
-#define BOARD_ADC_USB_CONNECTED (px4_arch_gpioread(GPIO_OTGFS_VBUS))
 #define BOARD_ADC_USB_VALID     (!px4_arch_gpioread(GPIO_nVDD_USB_VALID))
 #define BOARD_ADC_BRICK1_VALID  (!px4_arch_gpioread(GPIO_nVDD_BRICK1_VALID))
 #define BOARD_ADC_BRICK2_VALID  (!px4_arch_gpioread(GPIO_nVDD_BRICK2_VALID))
@@ -190,7 +182,6 @@
 		PX4_GPIO_PIN_OFF(GPIO_SDMMC1_D3), \
 		PX4_GPIO_PIN_OFF(GPIO_SDMMC1_CMD),\
 		GPIO_TONE_ALARM_IDLE,             \
-		GPIO_OTGFS_VBUS,                  \
 	}
 
 __BEGIN_DECLS

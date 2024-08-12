@@ -60,6 +60,10 @@
 #include <px4_platform/gpio.h>
 #include <px4_platform/board_dma_alloc.h>
 
+#if defined(FLASH_BASED_PARAMS)
+#  include <parameters/flashparams/flashfs.h>
+#endif
+
 #include <mpu.h>
 
 __BEGIN_DECLS
@@ -190,6 +194,24 @@ __EXPORT int board_app_initialize(uintptr_t arg)
 	/* Assume that the SD card is inserted.  What choice do we have? */
 	sdio_mediachange(sdio_dev, true);
 #endif /* CONFIG_MMCSD */
+
+#if defined(FLASH_BASED_PARAMS)
+	static sector_descriptor_t params_sector_map[] = {
+		{1, 32 * 1024, 0x081C0000},
+		{2, 32 * 1024, 0x081C8000},
+		{0, 0, 0},
+	};
+
+	/* Initialize the flashfs layer to use heap allocated memory */
+	int result = parameter_flashfs_init(params_sector_map, NULL, 0);
+
+	if (result != OK) {
+		syslog(LOG_ERR, "[boot] FAILED to init params in FLASH %d\n", result);
+		led_on(LED_AMBER);
+		return result;
+	}
+
+#endif /* FLASH_BASED_PARAMS */
 
 	/* Configure the HW based on the manifest */
 

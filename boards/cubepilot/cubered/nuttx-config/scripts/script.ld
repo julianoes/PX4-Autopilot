@@ -158,15 +158,6 @@ SECTIONS
 		_einit = ABSOLUTE(.);
 	} > FLASH
 
-	.bss : {
-		_sbss = ABSOLUTE(.);
-		*(.bss .bss.*)
-		*(.gnu.linkonce.b.*)
-		*(COMMON)
-		. = ALIGN(4);
-		_ebss = ABSOLUTE(.);
-	} > AXI_SRAM
-
 	/* External Flash area if defined */
 	.extflash : ALIGN(4) SUBALIGN(4)
 	{
@@ -215,6 +206,14 @@ SECTIONS
 		. += 16;
 	} > AXI_SRAM AT > FLASH  = 0xffff
 
+	.bss : {
+		_sbss = ABSOLUTE(.);
+		*(.bss .bss.*)
+		*(.gnu.linkonce.b.*)
+		*(COMMON)
+		. = ALIGN(4);
+		_ebss = ABSOLUTE(.);
+	} > AXI_SRAM
 
 	/* Emit the the D3 power domain section for locating BDMA data */
 

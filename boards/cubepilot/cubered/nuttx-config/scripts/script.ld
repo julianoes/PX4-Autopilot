@@ -110,8 +110,8 @@
 MEMORY
 {
 	ITCM_RAM  (rwx) : ORIGIN = 0x00000000, LENGTH =    64K
-	FLASH      (rx) : ORIGIN = 0x08020000, LENGTH =  1664K
-	/*EXT_FLASH  (rx) : ORIGIN = 0x90000000, LENGTH = 32768K */
+	FLASH      (rx) : ORIGIN = 0x08020000, LENGTH =  1664K /* 2 sectors of 128K following for params) */
+	EXT_FLASH  (rx) : ORIGIN = 0x90000000, LENGTH = 32768K
 
 	DTCM1_RAM (rwx) : ORIGIN = 0x20000000, LENGTH =   64K
 	DTCM2_RAM (rwx) : ORIGIN = 0x20010000, LENGTH =   64K
@@ -136,7 +136,8 @@ EXTERN(_bootdelay_signature)
 
 SECTIONS
 {
-	.text : {
+	startup : ALIGN(4) SUBALIGN(4)
+	{
 		_stext = ABSOLUTE(.);
 		*(.vectors)
 		. = ALIGN(32);
@@ -146,6 +147,35 @@ SECTIONS
 		_bootdelay_signature = ABSOLUTE(.);
 		FILL(0xffecc2925d7d05c5)
 		. += 8;
+	} > FLASH
+
+	/*
+	 * Init functions (static constructors and the like)
+	 */
+	init_section : {
+		_sinit = ABSOLUTE(.);
+		KEEP(*(.init_array .init_array.*))
+		_einit = ABSOLUTE(.);
+	} > FLASH
+
+	.bss : {
+		_sbss = ABSOLUTE(.);
+		*(.bss .bss.*)
+		*(.gnu.linkonce.b.*)
+		*(COMMON)
+		. = ALIGN(4);
+		_ebss = ABSOLUTE(.);
+	} > AXI_SRAM
+
+	/* External Flash area if defined */
+	.extflash : ALIGN(4) SUBALIGN(4)
+	{
+		*libromfs.a:*.*(.text* .rodata*)
+		*libmodules__mavlink.a:*.*(.text* .rodata*)
+		*(.extflash)
+	} > EXT_FLASH
+
+	.text : {
 		*(.text .text.*)
 		*(.fixup)
 		*(.gnu.warning)
@@ -159,20 +189,6 @@ SECTIONS
 		_etext = ABSOLUTE(.);
 
 	} > FLASH
-
-	/*
-	 * Init functions (static constructors and the like)
-	 */
-	.init_section : {
-		_sinit = ABSOLUTE(.);
-		KEEP(*(.init_array .init_array.*))
-		_einit = ABSOLUTE(.);
-	} > FLASH
-
-	/* External Flash area if defined */
-	/*.extflash : ALIGN(4) SUBALIGN(4) */
-	/*{ */
-	/*} > EXT_FLASH*/
 
 	.ARM.extab : {
 		*(.ARM.extab*)
@@ -199,14 +215,6 @@ SECTIONS
 		. += 16;
 	} > AXI_SRAM AT > FLASH  = 0xffff
 
-	.bss : {
-		_sbss = ABSOLUTE(.);
-		*(.bss .bss.*)
-		*(.gnu.linkonce.b.*)
-		*(COMMON)
-		. = ALIGN(4);
-		_ebss = ABSOLUTE(.);
-	} > AXI_SRAM
 
 	/* Emit the the D3 power domain section for locating BDMA data */
 

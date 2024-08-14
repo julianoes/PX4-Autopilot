@@ -162,6 +162,7 @@ SECTIONS
 	.extflash : ALIGN(4) SUBALIGN(4)
 	{
 		*libromfs.a:*.*(.text* .rodata*)
+		libmodules__commander.a:*.*(.text* .rodata*)
 		*libmodules__mavlink.a:*.*(.text* .rodata*)
 		*(.extflash)
 		_etext = ABSOLUTE(.);

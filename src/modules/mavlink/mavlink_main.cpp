@@ -134,7 +134,7 @@ Mavlink::Mavlink() :
 	}
 
 	_event_sub.subscribe();
-	_telemetry_status_pub.advertise();
+	//_telemetry_status_pub.advertise();
 }
 
 Mavlink::~Mavlink()
@@ -1169,6 +1169,7 @@ Mavlink::configure_stream(const char *stream_name, const float rate)
 
 			} else {
 				/* delete stream */
+				printf("delete: %s\n", stream_name);
 				_streams.deleteNode(stream);
 				return OK; // must finish with loop after node is deleted
 			}
@@ -1183,6 +1184,7 @@ Mavlink::configure_stream(const char *stream_name, const float rate)
 
 	if (stream != nullptr) {
 		stream->set_interval(interval);
+		printf("add: %s, 0x%x\n", stream_name, (unsigned)stream);
 		_streams.add(stream);
 
 		return OK;
@@ -2281,7 +2283,7 @@ Mavlink::task_main(int argc, char *argv[])
 		px4_usleep(_main_loop_delay);
 
 		if (!should_transmit()) {
-			check_requested_subscriptions();
+			//check_requested_subscriptions();
 			handleStatus();
 			handleCommands();
 			handleAndGetCurrentCommandAck();
@@ -2293,17 +2295,17 @@ Mavlink::task_main(int argc, char *argv[])
 
 		const hrt_abstime t = hrt_absolute_time();
 
-		update_rate_mult();
+		//update_rate_mult();
 
 		// check for parameter updates
-		if (_parameter_update_sub.updated()) {
-			// clear update
-			parameter_update_s pupdate;
-			_parameter_update_sub.copy(&pupdate);
+		//if (_parameter_update_sub.updated()) {
+		//	// clear update
+		//	parameter_update_s pupdate;
+		//	_parameter_update_sub.copy(&pupdate);
 
-			// update parameters from storage
-			mavlink_update_parameters();
-		}
+		//	// update parameters from storage
+		//	mavlink_update_parameters();
+		//}
 
 		configure_sik_radio();
 
@@ -2326,24 +2328,25 @@ Mavlink::task_main(int argc, char *argv[])
 			}
 		}
 
-		check_requested_subscriptions();
+		//check_requested_subscriptions();
 
 		/* update streams */
 		for (const auto &stream : _streams) {
-			stream->update(t);
+			(void)stream;
+		//	stream->update(t);
 
-			if (!_first_heartbeat_sent) {
-				if (_mode == MAVLINK_MODE_IRIDIUM) {
-					if (stream->get_id() == MAVLINK_MSG_ID_HIGH_LATENCY2) {
-						_first_heartbeat_sent = stream->first_message_sent();
-					}
+		//	if (!_first_heartbeat_sent) {
+		//		if (_mode == MAVLINK_MODE_IRIDIUM) {
+		//			if (stream->get_id() == MAVLINK_MSG_ID_HIGH_LATENCY2) {
+		//				_first_heartbeat_sent = stream->first_message_sent();
+		//			}
 
-				} else {
-					if (stream->get_id() == MAVLINK_MSG_ID_HEARTBEAT) {
-						_first_heartbeat_sent = stream->first_message_sent();
-					}
-				}
-			}
+		//		} else {
+		//			if (stream->get_id() == MAVLINK_MSG_ID_HEARTBEAT) {
+		//				_first_heartbeat_sent = stream->first_message_sent();
+		//			}
+		//		}
+		//	}
 		}
 
 		/* check for ulog streaming messages */
@@ -2723,11 +2726,11 @@ void Mavlink::publish_telemetry_status()
 	_tstatus.forwarding = get_forwarding_on();
 	_tstatus.mavlink_v2 = (_protocol_version == 2);
 
-	_tstatus.streams = _streams.size();
+	//_tstatus.streams = _streams.size();
 
 	// telemetry_status is also updated from the receiver thread, but never the same fields
 	_tstatus.timestamp = hrt_absolute_time();
-	_telemetry_status_pub.publish(_tstatus);
+	//_telemetry_status_pub.publish(_tstatus);
 	_tstatus_updated = false;
 }
 

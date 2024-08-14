@@ -457,8 +457,6 @@ class uploader:
 
     # send the CHIP_ERASE command and wait for the bootloader to become ready
     def __erase(self, label):
-        print(f"Windowed mode: {self.ackWindowedMode}")
-        print("\n", end='')
 
         if self.force_erase:
             print("Trying force erase of full chip...\n")
@@ -483,8 +481,9 @@ class uploader:
 
             if self.__trySync():
                 self.__drawProgressBar(label, 10.0, 10.0)
+                print("")
                 if self.force_erase:
-                    print("\nForce erase done.\n")
+                    print("Force erase done.\n")
                 return
 
         if self.force_erase:
@@ -557,7 +556,6 @@ class uploader:
     # upload code
     def __program(self, label, fw):
         self.__probe(False)
-        print("\n", end='')
         code = fw.image
         groups = self.__split_len(code, uploader.PROG_MULTI_MAX)
         # Give imedate feedback
@@ -584,10 +582,10 @@ class uploader:
         self.__ackSyncWindow(self.window)
         self.window = 0
         self.__drawProgressBar(label, 100, 100)
+        print("")
 
     # verify code
     def __verify_v2(self, label, fw):
-        print("\n", end='')
         self.__send(uploader.CHIP_VERIFY +
                     uploader.EOC)
         self.__getSync()
@@ -601,9 +599,9 @@ class uploader:
             if (not self.__verify_multi(bytes)):
                 raise RuntimeError("Verification failed")
         self.__drawProgressBar(label, 100, 100)
+        print("")
 
     def __verify_v3(self, label, fw):
-        print("\n", end='')
         self.__drawProgressBar(label, 1, 100)
         expect_crc = fw.crc(self.fw_maxsize)
         self.__send(uploader.GET_CRC + uploader.EOC)
@@ -615,6 +613,7 @@ class uploader:
             print("Got      0x%x" % report_crc)
             raise RuntimeError("Program CRC failed")
         self.__drawProgressBar(label, 100, 100)
+        print("")
 
     def __set_boot_delay(self, boot_delay):
         self.__send(uploader.SET_BOOT_DELAY +
@@ -640,8 +639,6 @@ class uploader:
         return True
 
     def __erase_extflash(self, label, fw):
-        print(f"Windowed mode: {self.ackWindowedMode}")
-        print("\n", end='')
 
         self.__send(uploader.EXTFLASH_ERASE +
                     len(fw.extflash_image).to_bytes(4, byteorder='little') +
@@ -657,11 +654,11 @@ class uploader:
                     last_pct = pct
             elif self.__trySync():
                 self.__drawProgressBar(label, 10.0, 10.0)
+                print("")
                 return
 
     def __program_extflash(self, label, fw):
 
-        print("\n", end='')
         groups = self.__split_len(fw.extflash_image, uploader.PROG_MULTI_MAX)
 
         uploadProgress = 0
@@ -673,10 +670,10 @@ class uploader:
             if uploadProgress % 32 == 0:
                 self.__drawProgressBar(label, uploadProgress, len(groups))
         self.__drawProgressBar(label, 100, 100)
+        print("")
 
     def __verify_extflash(self, label, fw):
         size_bytes = len(fw.extflash_image).to_bytes(4, byteorder='little')
-        print("\n", end='')
         self.__drawProgressBar(label, 1, 100)
 
         expect_crc = fw.extflash_crc(len(fw.extflash_image))
@@ -849,10 +846,14 @@ class uploader:
                                    "this script with --force, or update the bootloader. If you are invoking\n"
                                    "upload using make, you can use force-upload target to force the upload.\n")
 
+        print(f"Windowed mode: {self.ackWindowedMode}")
+
         if (len(fw.extflash_image) > 0):
-            self.__erase_extflash("Erase external flash  ", fw)
-            self.__program_extflash("Program external flash", fw)
-            self.__verify_extflash("Verify external flash ", fw)
+            print("\nExternal flash:")
+            self.__erase_extflash("Erase  ", fw)
+            self.__program_extflash("Program", fw)
+            self.__verify_extflash("Verify ", fw)
+            print("\nInternal flash:")
 
         self.__erase("Erase  ")
         self.__program("Program", fw)

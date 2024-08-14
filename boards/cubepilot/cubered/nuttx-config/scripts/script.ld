@@ -164,6 +164,7 @@ SECTIONS
 		*libromfs.a:*.*(.text* .rodata*)
 		*libmodules__mavlink.a:*.*(.text* .rodata*)
 		*(.extflash)
+		_etext = ABSOLUTE(.);
 	} > EXT_FLASH
 
 	.text : {
@@ -177,8 +178,6 @@ SECTIONS
 		*(.got)
 		*(.gcc_except_table)
 		*(.gnu.linkonce.r.*)
-		_etext = ABSOLUTE(.);
-
 	} > FLASH
 
 	.ARM.extab : {

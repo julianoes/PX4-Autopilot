@@ -1090,3 +1090,18 @@ PARAM_DEFINE_FLOAT(COM_WIND_MAX, -1.f);
  * @unit m
  */
 PARAM_DEFINE_FLOAT(COM_POS_LOW_EPH, -1.0f);
+
+/**
+ * Auto arm after button pressed
+ *
+ * After this amount of seconds it will auto-arm.
+ * Set to 0 to disable.
+ *
+ * @group Commander
+ * @unit s
+ * @min 0
+ * @max 300
+ * @decimal 1
+ * @increment 1
+ */
+PARAM_DEFINE_INT32(COM_ARM_BTN_T, 0);

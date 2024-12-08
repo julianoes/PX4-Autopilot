@@ -33,11 +33,18 @@
 
 #pragma once
 
+// Setting this means that the safety button is disabled as a pre-arm option,
+// and instead arming is possible by setting COM_ARM_BTN_T > 0.
+#define ENABLE_AUTO_ARM
+
 /*   Helper classes  */
 #include "Arming/ArmStateMachine/ArmStateMachine.hpp"
 #include "failure_detector/FailureDetector.hpp"
 #include "failsafe/failsafe.h"
 #include "Safety.hpp"
+#ifdef ENABLE_AUTO_ARM
+#include "AutoArm.hpp"
+#endif
 #include "worker_thread.hpp"
 #include "HealthAndArmingChecks/HealthAndArmingChecks.hpp"
 #include "HomePosition.hpp"
@@ -165,7 +172,9 @@ private:
 
 	void landDetectorUpdate();
 
+#ifndef ENABLE_AUTO_ARM
 	void safetyButtonUpdate();
+#endif
 
 	void vtolStatusUpdate();
 
@@ -205,7 +214,12 @@ private:
 	FailsafeBase		&_failsafe{_failsafe_instance};
 	FailureDetector		_failure_detector{this};
 	HealthAndArmingChecks	_health_and_arming_checks{this, _vehicle_status};
-	Safety			_safety{};
+#ifdef ENABLE_AUTO_ARM
+	AutoArm			_auto_arm {};
+#else
+	Safety			_safety {};
+#endif
+
 	UserModeIntention	_user_mode_intention{this, _vehicle_status, _health_and_arming_checks};
 	WorkerThread 		_worker_thread{};
 
@@ -237,6 +251,10 @@ private:
 	hrt_abstime _led_overload_toggle {0};
 
 	hrt_abstime _last_health_and_arming_check{0};
+
+#ifdef ENABLE_AUTO_ARM
+	hrt_abstime _auto_arm_start_time {0};
+#endif
 
 	uint8_t		_battery_warning{battery_status_s::BATTERY_WARNING_NONE};
 
@@ -324,6 +342,9 @@ private:
 		(ParamBool<px4::params::COM_OBS_AVOID>)     _param_com_obs_avoid,
 		(ParamFloat<px4::params::COM_OBC_LOSS_T>)   _param_com_obc_loss_t,
 		(ParamInt<px4::params::COM_PREARM_MODE>)    _param_com_prearm_mode,
+#ifdef ENABLE_AUTO_ARM
+		(ParamInt<px4::params::COM_ARM_BTN_T>)      _param_com_arm_btn_t,
+#endif
 		(ParamInt<px4::params::COM_RC_OVERRIDE>)    _param_com_rc_override,
 		(ParamInt<px4::params::COM_FLIGHT_UUID>)    _param_flight_uuid,
 		(ParamInt<px4::params::COM_TAKEOFF_ACT>)    _param_takeoff_finished_action,

@@ -58,6 +58,7 @@ px4_add_module(
 		mag_calibration.cpp
 		rc_calibration.cpp
 		Safety.cpp
+		AutoArm.cpp
 		worker_thread.cpp
 	DEPENDS
 		circuit_breaker

@@ -625,9 +625,16 @@ transition_result_t Commander::disarm(arm_disarm_reason_t calling_reason, bool f
 		events::send<events::px4::enums::arm_disarm_reason_t>(events::ID("commander_disarmed_by"), events::Log::Info,
 				"Disarmed by {1}", calling_reason);
 
+#ifdef ENABLE_AUTO_ARM
+		_auto_arm.reset();
+#else
+
 		if (_param_com_force_safety.get()) {
 			_safety.activateSafety();
 		}
+
+#endif
+
 
 		_status_changed = true;
 
@@ -1258,16 +1265,22 @@ Commander::handle_command(const vehicle_command_s &cmd)
 					if (check_battery_disconnected(&_mavlink_log_pub)) {
 						answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED);
 
+#ifndef ENABLE_AUTO_ARM
+
 						if (_safety.isButtonAvailable() && !_safety.isSafetyOff()) {
 							mavlink_log_critical(&_mavlink_log_pub, "ESC calibration denied! Press safety button first\t");
 							events::send(events::ID("commander_esc_calibration_denied"), events::Log::Critical,
 								     "ESCs calibration denied");
 
 						} else {
+#endif
 							_vehicle_status.calibration_enabled = true;
 							_actuator_armed.in_esc_calibration_mode = true;
 							_worker_thread.startTask(WorkerThread::Request::ESCCalibration);
+#ifndef ENABLE_AUTO_ARM
 						}
+
+#endif
 
 					} else {
 						answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_DENIED);
@@ -1430,7 +1443,13 @@ Commander::handle_command(const vehicle_command_s &cmd)
 
 unsigned Commander::handleCommandActuatorTest(const vehicle_command_s &cmd)
 {
+#ifdef ENABLE_AUTO_ARM
+
+	if (_arm_state_machine.isArmed()) {
+#else
+
 	if (_arm_state_machine.isArmed() || (_safety.isButtonAvailable() && !_safety.isSafetyOff())) {
+#endif
 		return vehicle_command_ack_s::VEHICLE_CMD_RESULT_DENIED;
 	}
 
@@ -1676,7 +1695,9 @@ void Commander::run()
 
 		landDetectorUpdate();
 
+#ifndef ENABLE_AUTO_ARM
 		safetyButtonUpdate();
+#endif
 
 		vtolStatusUpdate();
 
@@ -1786,6 +1807,34 @@ void Commander::run()
 		}
 
 		_actuator_armed.prearmed = getPrearmState();
+
+#ifdef ENABLE_AUTO_ARM
+
+		if (_param_com_arm_btn_t.get() > 0) {
+			if (_auto_arm.safetyButtonHandler() && _auto_arm.isButtonAvailable()) {
+				// Button was pressed, handle event.
+				if (_auto_arm.autoArming() && !_arm_state_machine.isArmed()) {
+					_auto_arm_start_time = now;
+					PX4_WARN("Auto arming in %" PRId32 " s", _param_com_arm_btn_t.get());
+					tune_positive(true);
+
+				} else {
+					_auto_arm_start_time = 0;
+					PX4_WARN("Auto arming disabled");
+				}
+			}
+
+			// Check if time has lapsed, if so try to arm
+			if (_auto_arm_start_time != 0 &&
+			    hrt_elapsed_time(&_auto_arm_start_time) > (hrt_abstime)_param_com_arm_btn_t.get() * 1000000) {
+				PX4_WARN("Trying to arm now!");
+				arm(arm_disarm_reason_t::command_internal, true);
+				_auto_arm_start_time = 0;
+				_auto_arm.reset();
+			}
+		}
+
+#endif
 
 		// publish states (armed, control_mode, vehicle_status, failure_detector_status) at 2 Hz or immediately when changed
 		if ((now >= _vehicle_status.timestamp + 500_ms) || _status_changed || nav_state_or_failsafe_changed
@@ -1907,6 +1956,8 @@ void Commander::checkForMissionUpdate()
 
 bool Commander::getPrearmState() const
 {
+#ifndef ENABLE_AUTO_ARM
+
 	switch ((PrearmedMode)_param_com_prearm_mode.get()) {
 	case PrearmedMode::DISABLED:
 		/* skip prearmed state  */
@@ -1928,6 +1979,8 @@ bool Commander::getPrearmState() const
 		/* safety button is not present, do not go into prearmed */
 		return false;
 	}
+
+#endif
 
 	return false;
 }
@@ -2008,6 +2061,7 @@ void Commander::landDetectorUpdate()
 	}
 }
 
+#ifndef ENABLE_AUTO_ARM
 void Commander::safetyButtonUpdate()
 {
 	const bool safety_changed = _safety.safetyButtonHandler();
@@ -2028,6 +2082,7 @@ void Commander::safetyButtonUpdate()
 		_status_changed = true;
 	}
 }
+#endif
 
 void Commander::vtolStatusUpdate()
 {

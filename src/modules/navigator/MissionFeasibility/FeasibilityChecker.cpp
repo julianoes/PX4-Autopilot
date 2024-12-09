@@ -339,6 +339,8 @@ bool FeasibilityChecker::checkTakeoff(mission_item_s &mission_item)
 			_has_takeoff = true;
 		}
 
+// We allow multiple takeoff commands.
+#if 0
 
 		if (_found_item_with_position) {
 			mavlink_log_critical(_mavlink_log_pub, "Mission rejected: takeoff not first waypoint item\t");
@@ -346,6 +348,8 @@ bool FeasibilityChecker::checkTakeoff(mission_item_s &mission_item)
 				     "Mission rejected: takeoff is not the first waypoint item");
 			return false;
 		}
+
+#endif
 	}
 
 	if (!_found_item_with_position) {

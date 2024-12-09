@@ -178,6 +178,12 @@ Mission::on_inactivation()
 
 	/* reset so current mission item gets restarted if mission was paused */
 	_work_item_type = WORK_ITEM_TYPE_DEFAULT;
+
+	if (_navigator->get_vstatus()->arming_state == vehicle_status_s::ARMING_STATE_STANDBY
+	    && _mission_item.nav_cmd == NAV_CMD_LAND) {
+		PX4_WARN("Advancing mission item after landing");
+		advance_mission();
+	}
 }
 
 void
@@ -1819,11 +1825,15 @@ Mission::reset_mission(struct mission_s &mission)
 bool
 Mission::need_to_reset_mission()
 {
+#if 0
+
 	/* reset mission state when disarmed */
 	if (_navigator->get_vstatus()->arming_state != vehicle_status_s::ARMING_STATE_ARMED && _need_mission_reset) {
 		_need_mission_reset = false;
 		return true;
 	}
+
+#endif
 
 	return false;
 }

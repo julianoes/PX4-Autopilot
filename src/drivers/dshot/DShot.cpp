@@ -567,6 +567,7 @@ void DShot::Run()
 		const int need_to_publish = handle_new_bdshot_erpm();
 
 		if (need_to_publish) {
+			printf("================================> publish!\n");
 			publish_esc_status();
 		}
 	}

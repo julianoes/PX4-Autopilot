@@ -107,6 +107,7 @@
 
 #define BOARD_NUM_IO_TIMERS 4
 
+#define BOARD_DMA_NUM_DSHOT_CHANNELS 4
 
 /* Tone alarm output */
 

@@ -646,7 +646,11 @@ State FlightTaskAuto::_getCurrentState()
 
 	} else if (u_prev_to_target_xy * prev_to_pos_xy < 0.0f && prev_to_pos_xy.longerThan(_target_acceptance_radius)) {
 		// Previous is in front
-		return_state = State::previous_infront;
+		if (!_param_mpc_decouple_z.get()) {
+			// When Z is decoupled, we don't switch back to a previous waypoint in case we got blown
+			// back so far by the wind.
+			return_state = State::previous_infront;
+		}
 
 	} else if (Vector2f(_position - _closest_pt).longerThan(_target_acceptance_radius)) {
 		// Vehicle too far from the track

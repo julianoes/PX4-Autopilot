@@ -133,6 +133,17 @@ PARAM_DEFINE_FLOAT(MPC_XY_TRAJ_P, 0.5f);
 PARAM_DEFINE_FLOAT(MPC_XY_ERR_MAX, 2.f);
 
 /**
+ * Decouple Z control from XY
+ *
+ * If we want to prioritize Z during high winds, we can decouple Z control, so we will control height
+ * independently from the XY error.
+ *
+ * @boolean
+ * @group Multicopter Position Control
+ */
+PARAM_DEFINE_INT32(MPC_DECOUPLE_Z, 0);
+
+/**
  * Maximum yaw rate in autonomous modes
  *
  * Limits the rate of change of the yaw setpoint to avoid large

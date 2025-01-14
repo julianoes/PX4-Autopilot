@@ -174,35 +174,83 @@ const Vector3f PositionSmoothing::_generateVelocitySetpoint(const Vector3f &posi
 	Vector3f velocity_setpoint = feedforward_velocity_setpoint;
 
 	if (xy_target_valid && z_target_valid) {
-		// Use 3D position setpoint to generate a 3D velocity setpoint
-		Vector3f pos_traj(_trajectory[0].getCurrentPosition(),
-				  _trajectory[1].getCurrentPosition(),
-				  _trajectory[2].getCurrentPosition());
-		const Vector3f crossing_point = is_single_waypoint ? target : _getCrossingPoint(position, waypoints);
-		const Vector3f u_pos_traj_to_dest{(crossing_point - pos_traj).unit_or_zero()};
 
-		float xy_speed = _getMaxXYSpeed(waypoints);
-		const float z_speed = _getMaxZSpeed(waypoints);
+		if (_is_z_decoupled) {
+			// Calculate horizontal and vertical setpoint independently.
 
-		if (!is_single_waypoint && _isTurning(target)) {
-			// Limit speed during a turn
-			xy_speed = math::min(_max_speed_previous, xy_speed);
+			// Use 2D position setpoint to generate a 2D velocity setpoint
+			// Get various path specific vectors
+			Vector2f pos_traj(_trajectory[0].getCurrentPosition(), _trajectory[1].getCurrentPosition());
+			Vector2f crossing_point = is_single_waypoint ? Vector2f(target) : Vector2f(_getCrossingPoint(position, waypoints));
+			Vector2f pos_traj_to_dest_xy = crossing_point - pos_traj;
+			Vector2f u_pos_traj_to_dest_xy(pos_traj_to_dest_xy.unit_or_zero());
 
-		} else {
-			_max_speed_previous = xy_speed;
-		}
+			float xy_speed = _getMaxXYSpeed(waypoints);
 
-		Vector3f vel_sp_constrained = u_pos_traj_to_dest * sqrtf(xy_speed * xy_speed + z_speed * z_speed);
-		math::trajectory::clampToXYNorm(vel_sp_constrained, xy_speed, 0.5f);
-		math::trajectory::clampToZNorm(vel_sp_constrained, z_speed, 0.5f);
-
-		for (int i = 0; i < 3; i++) {
-			// If available, use the existing velocity as a feedforward, otherwise replace it
-			if (PX4_ISFINITE(velocity_setpoint(i))) {
-				velocity_setpoint(i) += vel_sp_constrained(i);
+			if (_isTurning(target)) {
+				// Lock speed during turn
+				xy_speed = math::min(_max_speed_previous, xy_speed);
 
 			} else {
-				velocity_setpoint(i) = vel_sp_constrained(i);
+				_max_speed_previous = xy_speed;
+			}
+
+			Vector2f vel_sp_constrained_xy = u_pos_traj_to_dest_xy * xy_speed;
+
+			for (int i = 0; i < 2; i++) {
+				// If available, use the existing velocity as a feedforward, otherwise replace it
+				if (PX4_ISFINITE(velocity_setpoint(i))) {
+					velocity_setpoint(i) += vel_sp_constrained_xy(i);
+
+				} else {
+					velocity_setpoint(i) = vel_sp_constrained_xy(i);
+				}
+			}
+
+			// Use Z position setpoint to generate a Z velocity setpoint
+
+			const float z_dir = matrix::sign(target(2) - _trajectory[2].getCurrentPosition());
+			const float vel_sp_z = z_dir * _getMaxZSpeed(waypoints);
+
+			// If available, use the existing velocity as a feedforward, otherwise replace it
+			if (PX4_ISFINITE(velocity_setpoint(2))) {
+				velocity_setpoint(2) += vel_sp_z;
+
+			} else {
+				velocity_setpoint(2) = vel_sp_z;
+			}
+
+		} else {
+			// Use 3D position setpoint to generate a 3D velocity setpoint
+			Vector3f pos_traj(_trajectory[0].getCurrentPosition(),
+					  _trajectory[1].getCurrentPosition(),
+					  _trajectory[2].getCurrentPosition());
+			const Vector3f crossing_point = is_single_waypoint ? target : _getCrossingPoint(position, waypoints);
+			const Vector3f u_pos_traj_to_dest{(crossing_point - pos_traj).unit_or_zero()};
+
+			float xy_speed = _getMaxXYSpeed(waypoints);
+			const float z_speed = _getMaxZSpeed(waypoints);
+
+			if (!is_single_waypoint && _isTurning(target)) {
+				// Limit speed during a turn
+				xy_speed = math::min(_max_speed_previous, xy_speed);
+
+			} else {
+				_max_speed_previous = xy_speed;
+			}
+
+			Vector3f vel_sp_constrained = u_pos_traj_to_dest * sqrtf(xy_speed * xy_speed + z_speed * z_speed);
+			math::trajectory::clampToXYNorm(vel_sp_constrained, xy_speed, 0.5f);
+			math::trajectory::clampToZNorm(vel_sp_constrained, z_speed, 0.5f);
+
+			for (int i = 0; i < 3; i++) {
+				// If available, use the existing velocity as a feedforward, otherwise replace it
+				if (PX4_ISFINITE(velocity_setpoint(i))) {
+					velocity_setpoint(i) += vel_sp_constrained(i);
+
+				} else {
+					velocity_setpoint(i) = vel_sp_constrained(i);
+				}
 			}
 		}
 	}
@@ -290,7 +338,15 @@ void PositionSmoothing::_generateTrajectory(
 	}
 
 	for (int i = 0; i < 3; ++i) {
-		_trajectory[i].updateTraj(delta_time, time_stretch);
+
+		if (_is_z_decoupled && i == 2) {
+			// Don't apply stretching to Z if it is decoupled.
+			_trajectory[i].updateTraj(delta_time, 1.0f);
+
+		} else {
+			_trajectory[i].updateTraj(delta_time, time_stretch);
+		}
+
 		out_setpoints.jerk(i) = _trajectory[i].getCurrentJerk();
 		out_setpoints.acceleration(i) = _trajectory[i].getCurrentAcceleration();
 		out_setpoints.velocity(i) = _trajectory[i].getCurrentVelocity();

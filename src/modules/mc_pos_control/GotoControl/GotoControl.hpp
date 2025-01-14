@@ -94,6 +94,7 @@ public:
 	void setParamMpcJerkAuto(const float param_mpc_jerk_auto) { _position_smoothing.setMaxJerk(param_mpc_jerk_auto); }
 	void setParamMpcXyCruise(const float param_mpc_xy_cruise) { _param_mpc_xy_cruise = param_mpc_xy_cruise; }
 	void setParamMpcXyErrMax(const float param_mpc_xy_err_max) { _position_smoothing.setMaxAllowedHorizontalError(param_mpc_xy_err_max); }
+	void setDecoupleZ(const bool param_mpc_decouple_z) { _position_smoothing.setDecoupleZ(param_mpc_decouple_z); }
 	void setParamMpcXyVelMax(const float param_mpc_xy_vel_max) { _position_smoothing.setMaxVelocityXY(param_mpc_xy_vel_max); }
 	void setParamMpcYawrautoMax(const float param_mpc_yawrauto_max) { _param_mpc_yawrauto_max = param_mpc_yawrauto_max; }
 	void setParamMpcYawrautoAcc(const float param_mpc_yawrauto_acc) { _param_mpc_yawrauto_acc = param_mpc_yawrauto_acc; }

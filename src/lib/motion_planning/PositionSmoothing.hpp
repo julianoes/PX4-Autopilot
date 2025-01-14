@@ -331,6 +331,11 @@ public:
 		_max_allowed_horizontal_error = error;
 	}
 
+	inline void setDecoupleZ(bool is_z_decoupled)
+	{
+		_is_z_decoupled = is_z_decoupled;
+	}
+
 	/**
 	 * @param radius  Altitude Acceptance Radius. Often set to NAV_MC_ALT_RAD
 	 */
@@ -416,6 +421,7 @@ private:
 	float _cruise_speed{0.f};
 	float _horizontal_trajectory_gain{0.f};
 	float _target_acceptance_radius{0.f};
+	bool _is_z_decoupled{false};
 
 
 	/* Internal state */

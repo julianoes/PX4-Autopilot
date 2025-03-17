@@ -269,8 +269,8 @@
 #define GPIO_I2C1_SCL GPIO_I2C1_SCL_2       /* PB8  */
 #define GPIO_I2C1_SDA GPIO_I2C1_SDA_2       /* PB9  */
 
-#define GPIO_I2C2_SCL GPIO_I2C2_SCL_1       /* PB10 */
-#define GPIO_I2C2_SDA GPIO_I2C2_SDA_1       /* PB11 */
+//#define GPIO_I2C2_SCL GPIO_I2C2_SCL_1       /* PB10 */
+//#define GPIO_I2C2_SDA GPIO_I2C2_SDA_1       /* PB11 */
 
 #define GPIO_I2C4_SCL GPIO_I2C4_SCL_2        /* PF14 */
 #define GPIO_I2C4_SDA GPIO_I2C4_SDA_2        /* PF15 */

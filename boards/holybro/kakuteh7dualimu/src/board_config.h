@@ -63,7 +63,7 @@
 
 /* LEDs are driven with push open drain to support Anode to 5V or 3.3V */
 
-#define GPIO_nLED_RED        /* PC2 */  (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN2)
+#define GPIO_nLED_RED        /* PC2 */  (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN2)
 
 #define BOARD_HAS_CONTROL_STATUS_LEDS      1
 #define BOARD_OVERLOAD_LED     LED_RED
@@ -156,11 +156,15 @@
  */
 #define BOARD_ADC_USB_CONNECTED (px4_arch_gpioread(GPIO_OTGFS_VBUS))
 
-/* Board never powers off the Servo rail */
+// PE2 pin: Input – Low level indicates BEC power supply; High level indicates USB power supply.
+#define GPIO_nPOWER_IN_BEC      /* PE2  */ (GPIO_INPUT|GPIO_PULLUP|GPIO_PORTE|GPIO_PIN2)
+#define BOARD_ADC_BRICK1_VALID  (!px4_arch_gpioread(GPIO_nPOWER_IN_BEC))
+
+// PE3 pin: Output – Low level turns off the 9V BEC on the power board; High level turns on the 9V BEC.
+#define GPIO_BEC_POWER_EN  /* PE3  */ (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN3)
 
 #define BOARD_ADC_SERVO_VALID     (1)
 
-#define BOARD_ADC_BRICK1_VALID  (1)
 
 
 
@@ -177,6 +181,7 @@
 		GPIO_RSSI_IN,                     \
 		GPIO_CAN1_TX,                     \
 		GPIO_CAN1_RX,                     \
+		GPIO_BEC_POWER_EN,                \
 	}
 
 #define BOARD_ENABLE_CONSOLE_BUFFER

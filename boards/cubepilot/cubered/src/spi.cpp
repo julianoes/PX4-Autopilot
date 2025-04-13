@@ -38,6 +38,7 @@
 constexpr px4_spi_bus_t px4_spi_buses[SPI_BUS_MAX_BUS_ITEMS] = {
 	initSPIBus(SPI::Bus::SPI1, {
 		initSPIDevice(DRV_IMU_DEVTYPE_ICM42688P, SPI::CS{GPIO::PortE, GPIO::Pin9}), // ICM42688_0_CS
+		initSPIDevice(DRV_IMU_DEVTYPE_ICM45686, SPI::CS{GPIO::PortE, GPIO::Pin9}), // ICM42688_0_CS
 		initSPIDevice(DRV_BARO_DEVTYPE_MS5611,  SPI::CS{GPIO::PortE, GPIO::Pin13}), // BARO_0_CS
 	}),
 
@@ -45,6 +46,7 @@ constexpr px4_spi_bus_t px4_spi_buses[SPI_BUS_MAX_BUS_ITEMS] = {
 		//initSPIDevice(SPIDEV_FLASH(0), SPI::CS{GPIO::PortD, GPIO::Pin10}), // FRAM_CS
 		initSPIDevice(DRV_MAG_DEVTYPE_RM3100, SPI::CS{GPIO::PortD, GPIO::Pin15}), // RM3100_CS
 		initSPIDevice(DRV_IMU_DEVTYPE_ICM42688P, SPI::CS{GPIO::PortD, GPIO::Pin14}), // ICM42688_1_CS
+		initSPIDevice(DRV_IMU_DEVTYPE_ICM45686, SPI::CS{GPIO::PortD, GPIO::Pin14}), // ICM42688_1_CS
 		
 	}),
 

@@ -11,11 +11,17 @@ board_adc start
 
 # SPI1
 ms5611 -s -b 1 start -c 13
-icm42688p -s -b 1 -R 27 -q start -c 9
+if ! icm42688p -s -b 1 -q -R 27 -c 9 start
+then
+	icm45686 -s -b 1 -R 27 -c 9 start
+fi
 
 # SPI2
-icm42688p -s -b 2 -R 2 -q start -c 14
 rm3100 -s -b 2 -R 6 start -c 15
+if ! icm42688p -s -b 2 -q -R 2 -c 14 start
+then
+	icm45686 -s -b 2 -R 27 -c 14 start
+fi
 
 
 # SPI4

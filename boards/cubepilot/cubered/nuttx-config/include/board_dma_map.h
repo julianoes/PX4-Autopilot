@@ -46,3 +46,7 @@
 #define DMAMAP_UART7_RX   DMAMAP_DMA12_USART6RX_1 /* DMA1:? */
 #define DMAMAP_UART7_TX   DMAMAP_DMA12_USART6TX_1 /* DMA1:? */
 
+// Timer 1 (DMA 1)
+// Timer 2 (DMA 1)
+
+// Timer 3 (DMA 2)

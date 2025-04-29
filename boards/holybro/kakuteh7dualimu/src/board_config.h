@@ -120,7 +120,7 @@
 #define GPIO_OTGFS_VBUS         /* PA8 */ (GPIO_INPUT|GPIO_PULLDOWN|GPIO_SPEED_100MHz|GPIO_PORTA|GPIO_PIN8)
 
 /* High-resolution timer */
-#define HRT_TIMER               4  /* use timer3 for the HRT */
+#define HRT_TIMER               8  /* use timer8 for the HRT */
 #define HRT_TIMER_CHANNEL       1  /* use capture/compare channel 1 */
 
 /* RC Serial port */

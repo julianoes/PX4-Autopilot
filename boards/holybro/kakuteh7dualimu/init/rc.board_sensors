@@ -6,8 +6,8 @@ board_adc start
 
 # The KakuteH7 dual IMU comes by default with an ICM2688P and ICM45686.
 #
-icm42688p -R 8 -s start
-icm45686 -R 8 -s start
+icm42688p -R 0 -s start
+icm45686 -R 0 -s start
 
 # ICP20100 baro on external I2C1
 icp201xx -X start

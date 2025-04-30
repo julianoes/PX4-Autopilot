@@ -56,24 +56,13 @@ extern void led_off(int led);
 extern void led_toggle(int led);
 __END_DECLS
 
-#ifdef CONFIG_ARCH_LEDS
-static bool nuttx_owns_leds = true;
-//                                B  R  S  G
-//                                0  1  2  3
-static const uint8_t xlatpx4[] = {1, 2, 4, 0};
-#  define xlat(p) xlatpx4[(p)]
+
+#define xlat(p) (p)
 static uint32_t g_ledmap[] = {
-	GPIO_nLED_RED,     // Indexed by BOARD_LED_RED
+	GPIO_nLED_RED,                      // Indexed by LED_RED
+	GPIO_nLED_BLUE,                     // Indexed by LED_BLUE
 };
 
-#else
-
-#  define xlat(p) (p)
-static uint32_t g_ledmap[] = {
-	GPIO_nLED_RED,                      // Indexed by LED_RED, LED_AMBER
-};
-
-#endif
 
 __EXPORT void led_init(void)
 {

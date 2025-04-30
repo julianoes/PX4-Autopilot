@@ -63,10 +63,12 @@
 
 /* LEDs are driven with push open drain to support Anode to 5V or 3.3V */
 
-#define GPIO_nLED_RED        /* PC2 */  (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN2)
+#define GPIO_nLED_RED        /* PE9 */  (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTE|GPIO_PIN9)
+#define GPIO_nLED_BLUE        /* PC2 */  (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN2)
 
 #define BOARD_HAS_CONTROL_STATUS_LEDS      1
 #define BOARD_OVERLOAD_LED     LED_RED
+#define BOARD_ARMED_STATE_LED  LED_BLUE
 
 /*
  * ADC channels
@@ -76,6 +78,8 @@
  */
 
 /* ADC defines to be used in sensors.cpp to read from a particular channel */
+
+#define SYSTEM_ADC_BASE STM32_ADC1_BASE
 
 #define ADC1_CH(n)                  (n)
 
@@ -88,14 +92,15 @@
 
 /* Define Channel numbers must match above GPIO pin IN(n)*/
 
-#define ADC_BATTERY_VOLTAGE_CHANNEL        /* PC4 */  ADC1_CH(4)
-#define ADC_BATTERY_CURRENT_CHANNEL        /* PC5 */  ADC1_CH(8)
-#define ADC_RSSI_IN_CHANNEL                /* PC0 */  ADC1_CH(10)
+#define ADC_BATTERY_CURRENT_CHANNEL        /* PC4 */  ADC1_CH(4)
+#define ADC_BATTERY_VOLTAGE_CHANNEL        /* PC5 */  ADC1_CH(8)
+#define ADC_RC_RSSI_CHANNEL                /* PC0 */  ADC1_CH(10)
+
 
 #define ADC_CHANNELS \
 	((1 << ADC_BATTERY_VOLTAGE_CHANNEL)       | \
 	 (1 << ADC_BATTERY_CURRENT_CHANNEL)       | \
-	 (1 << ADC_RSSI_IN_CHANNEL))
+	 (1 << ADC_RC_RSSI_CHANNEL))
 
 #define BOARD_ADC_OPEN_CIRCUIT_V     (5.6f)
 
@@ -110,8 +115,13 @@
 
 /* Tone alarm output */
 
-#define GPIO_TONE_ALARM_IDLE    /* PC13 */ (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN13)
-#define GPIO_TONE_ALARM_GPIO    /* PC13 */ (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN13)
+#define TONE_ALARM_TIMER        15  /* timer 15 */
+#define TONE_ALARM_CHANNEL      2  /* PA3 TIM15_CH2 */
+
+#define GPIO_BUZZER_1           /* PA3 */ (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTA|GPIO_PIN3)
+
+#define GPIO_TONE_ALARM_IDLE    GPIO_BUZZER_1
+#define GPIO_TONE_ALARM         GPIO_TIM15_CH2OUT_1
 
 /* USB OTG FS
  *
@@ -138,8 +148,6 @@
 #define RC_SERIAL_PORT                     "/dev/ttyS4" // USART6
 #define RC_SERIAL_PORT_SHARED_PPM_PIN_GPIO_RX             GPIO_USART6_RX
 
-#define GPIO_RSSI_IN                       /* PC0  */ (GPIO_INPUT|GPIO_PULLDOWN|GPIO_PORTC|GPIO_PIN0)
-
 /* Power switch controls ******************************************************/
 
 #define SDIO_SLOTNO                    0  /* Only one slot */
@@ -163,15 +171,6 @@
  */
 #define BOARD_ADC_USB_CONNECTED (px4_arch_gpioread(GPIO_OTGFS_VBUS))
 
-// PE2 pin: Input – Low level indicates BEC power supply; High level indicates USB power supply.
-#define GPIO_nPOWER_IN_BEC      /* PE2  */ (GPIO_INPUT|GPIO_PULLUP|GPIO_PORTE|GPIO_PIN2)
-#define BOARD_ADC_BRICK1_VALID  (!px4_arch_gpioread(GPIO_nPOWER_IN_BEC))
-
-// PE3 pin: Output – Low level turns off the 9V BEC on the power board; High level turns on the 9V BEC.
-#define GPIO_BEC_POWER_EN  /* PE3  */ (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN3)
-
-#define BOARD_ADC_SERVO_VALID     (1)
-
 
 
 
@@ -184,11 +183,10 @@
 
 #define PX4_GPIO_INIT_LIST { \
 		PX4_ADC_GPIO,                     \
-		GPIO_TONE_ALARM_IDLE,             \
-		GPIO_RSSI_IN,                     \
+		GPIO_nLED_RED,                     \
+		GPIO_BUZZER_1,             \
 		GPIO_CAN1_TX,                     \
 		GPIO_CAN1_RX,                     \
-		GPIO_BEC_POWER_EN,                \
 	}
 
 #define BOARD_ENABLE_CONSOLE_BUFFER

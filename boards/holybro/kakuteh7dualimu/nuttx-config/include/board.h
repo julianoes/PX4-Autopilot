@@ -361,7 +361,7 @@
 #define GPIO_USART6_TX   GPIO_USART6_TX_1   /* PC6 */
 
 #define GPIO_UART7_RX    GPIO_UART7_RX_3    /* PE7 */
-#define GPIO_UART7_TX    GPIO_UART7_TX_3    /* PE8 */
+#define GPIO_UART7_TX    GPIO_UART7_TX_3    /* PE8 -> not connected */
 
 /* CAN
  *

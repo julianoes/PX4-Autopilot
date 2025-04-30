@@ -125,11 +125,18 @@
 
 /* RC Serial port */
 
-/* PWM input driver. Use FMU AUX5 pins attached to timer4 channel 2 */
+/* PWM input driver. Untested */
 
-#define PWMIN_TIMER                       5
-#define PWMIN_TIMER_CHANNEL    /* T5C1 */ 1
-#define GPIO_PWM_IN            /* PA0  */ GPIO_TIM5_CH1IN
+//#define PWMIN_TIMER                       5
+//#define PWMIN_TIMER_CHANNEL    /* T5C1 */ 1
+//#define GPIO_PWM_IN            /* PA0  */ GPIO_TIM5_CH1IN
+
+// PPM in on Serial Rx (R6)
+#define HRT_PPM_CHANNEL         /* TIM8CH2 */  2  /* use capture/compare channel 2 */
+#define GPIO_PPM_IN             /* PC7 */ GPIO_TIM8_CH2IN_1
+
+#define RC_SERIAL_PORT                     "/dev/ttyS4" // USART6
+#define RC_SERIAL_PORT_SHARED_PPM_PIN_GPIO_RX             GPIO_USART6_RX
 
 #define GPIO_RSSI_IN                       /* PC0  */ (GPIO_INPUT|GPIO_PULLDOWN|GPIO_PORTC|GPIO_PIN0)
 

@@ -59,8 +59,13 @@ __END_DECLS
 
 #define xlat(p) (p)
 static uint32_t g_ledmap[] = {
-	GPIO_nLED_RED,                      // Indexed by LED_RED
 	GPIO_nLED_BLUE,                     // Indexed by LED_BLUE
+	GPIO_LED_RED,                      // Indexed by LED_RED
+};
+
+static bool g_led_inverted[] = {
+	true, // LED blue is active low
+	false, // LED_RED is active high
 };
 
 
@@ -78,7 +83,7 @@ static void phy_set_led(int led, bool state)
 	/* Drive Low to switch on */
 
 	if (g_ledmap[led] != 0) {
-		stm32_gpiowrite(g_ledmap[led], !state);
+		stm32_gpiowrite(g_ledmap[led], g_led_inverted[led] ? !state : state);
 	}
 }
 
@@ -86,7 +91,8 @@ static bool phy_get_led(int led)
 {
 	/* If Low it is on */
 	if (g_ledmap[led] != 0) {
-		return !stm32_gpioread(g_ledmap[led]);
+		bool value = stm32_gpioread(g_ledmap[led]);
+		return g_led_inverted[led] ? !value : value;
 	}
 
 	return false;

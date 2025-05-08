@@ -219,6 +219,35 @@ void Tailsitter::update_transition_state()
 						       _time_since_trans_start * trans_pitch_rate)) * _q_trans_start;
 		}
 
+		// Gradually blend from MC to FW controls during front transition
+		// Use airspeed if available, otherwise use time-based blending
+		_mc_roll_weight = 1.0f;
+		_mc_pitch_weight = 1.0f;
+		_mc_yaw_weight = 1.0f;
+
+		if (PX4_ISFINITE(_attc->get_calibrated_airspeed()) &&
+		    _attc->get_calibrated_airspeed() >= getBlendAirspeed()) {
+			_mc_roll_weight = 1.0f - (_attc->get_calibrated_airspeed() - getBlendAirspeed()) /
+					  (getTransitionAirspeed()  - getBlendAirspeed());
+			PX4_INFO("MC weight: %.2f (with airspeed)", (double)_mc_roll_weight);
+		}
+
+		// without airspeed do timed weight changes
+		else if ((!PX4_ISFINITE(_attc->get_calibrated_airspeed())) &&
+			 _time_since_trans_start > getMinimumFrontTransitionTime()) {
+			_mc_roll_weight = 1.0f - (_time_since_trans_start - getMinimumFrontTransitionTime()) /
+					  (getOpenLoopFrontTransitionTime() - getMinimumFrontTransitionTime());
+			PX4_INFO("MC weight: %.2f (no airspeed)", (double)_mc_roll_weight);
+
+		} else {
+			PX4_INFO("No blending");
+		}
+
+		// Constrain weights between 0 and 1
+		_mc_roll_weight = math::constrain(_mc_roll_weight, 0.0f, 1.0f);
+		_mc_pitch_weight = _mc_roll_weight;
+		_mc_yaw_weight = _mc_roll_weight;
+
 	} else if (_vtol_mode == vtol_mode::TRANSITION_BACK) {
 
 		// calculate pitching rate - and constrain to at least 0.1s transition time
@@ -228,11 +257,44 @@ void Tailsitter::update_transition_state()
 			_q_trans_sp = Quatf(AxisAnglef(_trans_rot_axis,
 						       _time_since_trans_start * trans_pitch_rate)) * _q_trans_start;
 		}
+
+		// Gradually blend from FW to MC controls during back transition
+		// Use airspeed if available, otherwise use time-based blending
+		_mc_roll_weight = 0.0f;
+
+		if (PX4_ISFINITE(_attc->get_calibrated_airspeed()) &&
+		    _attc->get_calibrated_airspeed() <= getTransitionAirspeed()) {
+			_mc_roll_weight = 1.0f - (_attc->get_calibrated_airspeed() - getBlendAirspeed()) /
+					  (getTransitionAirspeed() - getBlendAirspeed());
+			PX4_INFO("MC weight: %.2f (with airspeed)", (double)_mc_roll_weight);
+		}
+
+		// without airspeed do timed weight changes
+		else if (_time_since_trans_start > 0.0f) {
+			const float progress = math::constrain(_time_since_trans_start / _param_vt_b_trans_dur.get(), 0.0f, 1.0f);
+			_mc_roll_weight = progress;
+			PX4_INFO("MC weight: %.2f (no airspeed)", (double)_mc_roll_weight);
+
+		} else {
+			PX4_INFO("No blending");
+		}
+
+		// Constrain weights between 0 and 1
+		_mc_roll_weight = math::constrain(_mc_roll_weight, 0.0f, 1.0f);
+		_mc_pitch_weight = _mc_roll_weight;
+		_mc_yaw_weight = _mc_roll_weight;
 	}
 
 	_v_att_sp->thrust_body[2] = _mc_virtual_att_sp->thrust_body[2];
 
-	if (_vtol_mode == vtol_mode::TRANSITION_BACK) {
+	if (_vtol_mode == vtol_mode::TRANSITION_FRONT_P1) {
+		// During front transition, blend thrust between MC and FW
+		if (_time_since_trans_start < getMinimumFrontTransitionTime()) {
+			const float progress = math::constrain(_time_since_trans_start / getMinimumFrontTransitionTime(), 0.f, 1.f);
+			blendThrottleAfterFrontTransition(progress);
+		}
+
+	} else if (_vtol_mode == vtol_mode::TRANSITION_BACK) {
 		const float progress = math::constrain(_time_since_trans_start / B_TRANS_THRUST_BLENDING_DURATION, 0.f, 1.f);
 		blendThrottleBeginningBackTransition(progress);
 	}
@@ -320,9 +382,29 @@ void Tailsitter::fill_actuator_outputs()
 			_thrust_setpoint_0->xyz[2] = -_last_thr_in_fw_mode;
 		}
 
-		_torque_setpoint_0->xyz[0] = _vehicle_torque_setpoint_virtual_mc->xyz[0];
-		_torque_setpoint_0->xyz[1] = _vehicle_torque_setpoint_virtual_mc->xyz[1];
-		_torque_setpoint_0->xyz[2] = _vehicle_torque_setpoint_virtual_mc->xyz[2];
+		if (_vtol_mode == vtol_mode::TRANSITION_FRONT_P1) {
+			// During front transition, blend torque setpoints between MC and FW
+			_torque_setpoint_0->xyz[0] = _mc_roll_weight * _vehicle_torque_setpoint_virtual_mc->xyz[0] +
+						     (1.0f - _mc_roll_weight) * _vehicle_torque_setpoint_virtual_fw->xyz[0];
+			_torque_setpoint_0->xyz[1] = _mc_pitch_weight * _vehicle_torque_setpoint_virtual_mc->xyz[1] +
+						     (1.0f - _mc_pitch_weight) * _vehicle_torque_setpoint_virtual_fw->xyz[1];
+			_torque_setpoint_0->xyz[2] = _mc_yaw_weight * _vehicle_torque_setpoint_virtual_mc->xyz[2] +
+						     (1.0f - _mc_yaw_weight) * _vehicle_torque_setpoint_virtual_fw->xyz[2];
+
+		} else if (_vtol_mode == vtol_mode::TRANSITION_BACK) {
+			// During back transition, blend torque setpoints between FW and MC
+			_torque_setpoint_0->xyz[0] = _mc_roll_weight * _vehicle_torque_setpoint_virtual_mc->xyz[0] +
+						     (1.0f - _mc_roll_weight) * _vehicle_torque_setpoint_virtual_fw->xyz[0];
+			_torque_setpoint_0->xyz[1] = _mc_pitch_weight * _vehicle_torque_setpoint_virtual_mc->xyz[1] +
+						     (1.0f - _mc_pitch_weight) * _vehicle_torque_setpoint_virtual_fw->xyz[1];
+			_torque_setpoint_0->xyz[2] = _mc_yaw_weight * _vehicle_torque_setpoint_virtual_mc->xyz[2] +
+						     (1.0f - _mc_yaw_weight) * _vehicle_torque_setpoint_virtual_fw->xyz[2];
+
+		} else {
+			_torque_setpoint_0->xyz[0] = _vehicle_torque_setpoint_virtual_mc->xyz[0];
+			_torque_setpoint_0->xyz[1] = _vehicle_torque_setpoint_virtual_mc->xyz[1];
+			_torque_setpoint_0->xyz[2] = _vehicle_torque_setpoint_virtual_mc->xyz[2];
+		}
 	}
 
 	// Control surfaces

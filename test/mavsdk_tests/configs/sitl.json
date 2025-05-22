@@ -33,6 +33,12 @@
             "timeout_min": 10
         },
         {
+            "model": "quadtailsitter",
+            "vehicle": "quadtailsitter",
+            "test_filter": "[vtol]",
+            "timeout_min": 10
+        },
+        {
             "model": "typhoon_h480",
             "vehicle": "typhoon_h480",
             "test_filter": "[controlallocation]",

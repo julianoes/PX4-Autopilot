@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 ############################################################################
 #
-#   Copyright (c) 2012-2024 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2012-2025 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -61,11 +61,13 @@ import base64
 import time
 import array
 import os
+import glob
 
 from sys import platform as _platform
 
 try:
     import serial
+    import serial.tools.list_ports
 except ImportError as e:
     print(f"Failed to import serial: {e}")
     print("")
@@ -941,10 +943,59 @@ class uploader:
         return True
 
 
+def detect_serial_ports():
+    """Automatically detect potential PX4 serial ports based on platform"""
+    detected_ports = []
+
+    if "linux" in _platform:
+        patterns = [
+            "/dev/serial/by-id/*PX4*",
+            "/dev/serial/by-id/*_BL*",
+            "/dev/serial/by-id/*BL_FMU*",
+            "/dev/serial/by-id/usb-The_Autopilot*",
+            "/dev/serial/by-id/usb-Bitcraze*",
+            "/dev/serial/by-id/pci-Bitcraze*",
+            "/dev/serial/by-id/usb-Gumstix*",
+            "/dev/serial/by-id/usb-Hex*",
+            "/dev/serial/by-id/usb-UVify*",
+            "/dev/serial/by-id/usb-Ardu*",
+            "/dev/serial/by-id/usb-CubePilot*",
+            "/dev/serial/by-id/usb-Auterion*",
+            "/dev/serial/by-id/usb-mRo*",
+            "/dev/serial/by-id/usb-modalFC*",
+            "/dev/serial/by-id/usb-Holybro*",
+        ]
+
+        for pattern in patterns:
+            detected_ports.extend(glob.glob(pattern))
+
+    elif "darwin" in _platform:
+        patterns = [
+            "/dev/tty.usbmodem*"
+        ]
+
+        for pattern in patterns:
+            detected_ports.extend(glob.glob(pattern))
+
+    elif "cygwin" in _platform:
+        patterns = [
+            "/dev/ttyS*"
+        ]
+        for pattern in patterns:
+            detected_ports.extend(glob.glob(pattern))
+
+    elif "win" in _platform:
+        # Windows - check COM ports
+        for port_num in range(32, -1, -1):  # COM32 down to COM0
+            detected_ports.append(f"COM{port_num}")
+
+    return detected_ports
+
+
 def main():
     # Parse commandline arguments
     parser = argparse.ArgumentParser(description="Firmware uploader for the PX autopilot system.")
-    parser.add_argument('--port', action="store", required=True, help="Comma-separated list of serial port(s) to which the FMU may be attached")
+    parser.add_argument('--port', action="store", required=False, help="Comma-separated list of serial port(s) to which the FMU may be attached. If not specified, ports will be detected automatically.")
     parser.add_argument('--baud-bootloader', action="store", type=int, default=115200, help="Baud rate of the serial port (default is 115200) when communicating with bootloader, only required for true serial ports.")
     parser.add_argument('--baud-flightstack', action="store", default="57600", help="Comma-separated list of baud rate of the serial port (default is 57600) when communicating with flight stack (Mavlink or NSH), only required for true serial ports.")
     parser.add_argument('--force', action='store_true', default=False, help='Override board type check, or silicon errata checks and continue loading')
@@ -989,16 +1040,27 @@ def main():
     try:
         while True:
             portlist = []
-            patterns = args.port.split(",")
-            # on unix-like platforms use glob to support wildcard ports. This allows
-            # the use of /dev/serial/by-id/usb-3D_Robotics on Linux, which prevents the upload from
-            # causing modem hangups etc
-            if "linux" in _platform or "darwin" in _platform or "cygwin" in _platform:
-                import glob
-                for pattern in patterns:
-                    portlist += glob.glob(pattern)
+
+            if args.port:
+                # Use user-specified ports
+                patterns = args.port.split(",")
+                # on unix-like platforms use glob to support wildcard ports. This allows
+                # the use of /dev/serial/by-id/usb-3D_Robotics on Linux, which prevents the upload from
+                # causing modem hangups etc
+                if "linux" in _platform or "darwin" in _platform or "cygwin" in _platform:
+                    for pattern in patterns:
+                        portlist += glob.glob(pattern)
+                else:
+                    portlist = patterns
             else:
-                portlist = patterns
+                # Auto-detect ports
+                portlist = detect_serial_ports()
+                if not portlist:
+                    print("No serial ports detected. Please connect a PX4 device or specify ports manually with --port.")
+                    time.sleep(1.0)
+                    continue
+                else:
+                    print(f"Auto-detected {len(portlist)} potential serial port(s): {', '.join(portlist)}")
 
             baud_flightstack = [int(x) for x in args.baud_flightstack.split(',')]
 
@@ -1006,26 +1068,11 @@ def main():
             unsuitable_board = False
             for port in portlist:
 
-                # print("Trying %s" % port)
+                print("Trying %s" % port)
 
                 # create an uploader attached to the port
                 try:
-                    if "linux" in _platform:
-                        # Linux, don't open Mac OS and Win ports
-                        if "COM" not in port and "tty.usb" not in port:
-                            up = uploader(port, args.baud_bootloader, baud_flightstack)
-                    elif "darwin" in _platform:
-                        # OS X, don't open Windows and Linux ports
-                        if "COM" not in port and "ACM" not in port:
-                            up = uploader(port, args.baud_bootloader, baud_flightstack)
-                    elif "cygwin" in _platform:
-                        # Cygwin, don't open native Windows COM and Linux ports
-                        if "COM" not in port and "ACM" not in port:
-                            up = uploader(port, args.baud_bootloader, baud_flightstack)
-                    elif "win" in _platform:
-                        # Windows, don't open POSIX ports
-                        if "/" not in port:
-                            up = uploader(port, args.baud_bootloader, baud_flightstack)
+                    up = uploader(port, args.baud_bootloader, baud_flightstack)
                 except Exception as e:
                     # open failed, rate-limit our attempts
                     time.sleep(0.05)

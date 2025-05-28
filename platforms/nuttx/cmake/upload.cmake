@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2019 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2019-2025 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,57 +31,11 @@
 #
 ############################################################################
 
-# NuttX CDCACM vendor and product strings
-set(vendorstr_underscore)
-set(productstr_underscore)
-string(REPLACE " " "_" vendorstr_underscore ${CONFIG_CDCACM_VENDORSTR})
-string(REPLACE "," "_" vendorstr_underscore "${vendorstr_underscore}")
-string(REPLACE " " "_" productstr_underscore ${CONFIG_CDCACM_PRODUCTSTR})
-
-set(serial_ports)
-if(${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Linux")
-
-	set(px4_usb_path "${vendorstr_underscore}_${productstr_underscore}")
-	set(px4_bl_usb_path "${vendorstr_underscore}_BL")
-
-	list(APPEND serial_ports
-		# NuttX vendor + product string
-		/dev/serial/by-id/*-${px4_usb_path}*
-
-		# Bootloader
-		/dev/serial/by-id/*_${px4_bl_usb_path}*
-		/dev/serial/by-id/*PX4_BL* # typical bootloader USB device string
-		/dev/serial/by-id/*BL_FMU*
-
-		# TODO: handle these per board
-		/dev/serial/by-id/usb-The_Autopilot*
-		/dev/serial/by-id/usb-Bitcraze*
-		/dev/serial/by-id/pci-Bitcraze*
-		/dev/serial/by-id/usb-Gumstix*
-		/dev/serial/by-id/usb-Hex_ProfiCNC*
-		/dev/serial/by-id/usb-UVify*
-		/dev/serial/by-id/usb-ArduPilot*
-		)
-
-elseif(${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Darwin")
-	list(APPEND serial_ports
-		/dev/tty.usbmodemPX*,/dev/tty.usbmodem*
-		)
-elseif(${CMAKE_HOST_SYSTEM_NAME} STREQUAL "CYGWIN")
-	list(APPEND serial_ports
-		/dev/ttyS*
-		)
-elseif(${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
-	foreach(port RANGE 32 0)
-		list(APPEND serial_ports
-			"COM${port}")
-	endforeach()
-endif()
-
-string(REPLACE ";" "," serial_ports "${serial_ports}")
+# Serial port detection is now handled automatically by px_uploader.py
+# No need to build port lists in CMake anymore
 
 add_custom_target(upload
-	COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/px_uploader.py --port ${serial_ports} ${fw_package}
+	COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/px_uploader.py ${fw_package}
 	DEPENDS ${fw_package}
 	COMMENT "uploading px4"
 	VERBATIM
@@ -90,7 +44,7 @@ add_custom_target(upload
 	)
 
 add_custom_target(force-upload
-	COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/px_uploader.py --force --port ${serial_ports} ${fw_package}
+	COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/px_uploader.py --force ${fw_package}
 	DEPENDS ${fw_package}
 	COMMENT "uploading px4 with --force"
 	VERBATIM

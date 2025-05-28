@@ -1,10 +1,10 @@
 {
     "board_id": 1069,
     "magic": "PX4FWv1",
-    "description": "Firmware for the CubePilot CubeRed board",
+    "description": "Firmware for the CubePilot CubeRed Primary board",
     "image": "",
     "build_time": 0,
-    "summary": "CubeRed",
+    "summary": "CubeRed-Primary",
     "version": "0.1",
     "image_size": 0,
     "image_maxsize": 1966080,

@@ -354,6 +354,10 @@ if(EXISTS ${BOARD_DEFCONFIG})
 		add_definitions(-DCONSTRAINED_FLASH)
 	endif()
 
+	if(OVERRIDE_UPLOAD_TARGET)
+		set(CONFIG_OVERRIDE_UPLOAD_TARGET "1" CACHE INTERNAL "add upload target" FORCE)
+	endif()
+
 	if(EXTERNAL_FLASH)
 		set(px4_external_flash "1" CACHE INTERNAL "external flash" FORCE)
 	endif()

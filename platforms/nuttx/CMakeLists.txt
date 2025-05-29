@@ -382,7 +382,7 @@ if (TARGET parameters_xml AND TARGET airframes_xml)
 
 	# upload helper
 	# create upload target helper if NuttX USB CDCACM is present
-	if (CONFIG_CDCACM)
+	if (CONFIG_CDCACM OR CONFIG_BOARD_OVERRIDE_UPLOAD_TARGET)
 		include(upload)
 	endif()
 

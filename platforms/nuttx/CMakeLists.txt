@@ -563,7 +563,3 @@ include(blackmagic)
 include(jlink)
 include(profile)
 include(stack_check)
-
-if(EXISTS "${PX4_BOARD_DIR}/cmake/upload.cmake")
-	include(${PX4_BOARD_DIR}/cmake/upload.cmake)
-endif()

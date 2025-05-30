@@ -94,7 +94,8 @@
 #define BOARD_ADC_OPEN_CIRCUIT_V     (5.6f)
 
 /* PWM */
-#define DIRECT_PWM_OUTPUT_CHANNELS 18
+// For now, just support the basic 8 output channels, see timer_config.cpp for the rest.
+#define DIRECT_PWM_OUTPUT_CHANNELS 8
 
 /* Power supply control and monitoring GPIOs */
 #define BOARD_NUMBER_BRICKS             2

@@ -1,0 +1,5 @@
+menuconfig MODULES_CUBERED_IO
+	bool "cubered_io"
+	default n
+	---help---
+		Enable support for CubeRed IO module - PX4IO simulation for CubeRed Secondary

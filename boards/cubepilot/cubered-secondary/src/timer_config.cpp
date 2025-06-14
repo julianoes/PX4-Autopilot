@@ -36,8 +36,8 @@
 // For now, just enable the 8 basic output channels
 
 constexpr io_timers_t io_timers[MAX_IO_TIMERS] = {
-	initIOTimer(Timer::Timer1),
-	initIOTimer(Timer::Timer2),
+	initIOTimer(Timer::Timer1, DMA{DMA::Index2}),
+	initIOTimer(Timer::Timer2, DMA{DMA::Index2}),
 	//initIOTimer(Timer::Timer3),
 	//initIOTimer(Timer::Timer4),
 	//initIOTimer(Timer::Timer5),

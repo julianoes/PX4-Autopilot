@@ -231,7 +231,7 @@
 // USART3 -> /dev/ttyS1 -> GPS1
 // UART4 -> /dev/ttyS2 -> GPS2
 // USART6 -> /dev/ttyS3 -> Telem2
-// UART7 -> /dev/ttyS4 -> to Secondary
+// UART7 -> /dev/ttyS4 -> to Secondary (but swapped because not crossed over in hardware)
 // UART8 -> /dev/ttyS5 -> console
 
 #define GPIO_USART2_TX   GPIO_USART2_TX_2      /* PD5 */
@@ -250,6 +250,7 @@
 #define GPIO_USART6_CTS  GPIO_USART6_CTS_NSS_2 /* PG15 */
 #define GPIO_USART6_RTS  GPIO_USART6_RTS_2     /* PG8 */
 
+// Defined normal but needs swapping in software!
 #define GPIO_UART7_TX    GPIO_UART7_TX_3       /* PE8 */
 #define GPIO_UART7_RX    GPIO_UART7_RX_3       /* PE7 */
 

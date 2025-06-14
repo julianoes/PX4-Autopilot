@@ -54,22 +54,6 @@
 #endif
 
 
-/* PX4IO connection configuration */
-// TODO: needs verification
-//#define BOARD_USES_PX4IO_VERSION       2
-//#define PX4IO_SERIAL_DEVICE            "/dev/ttyS4"
-//#define PX4IO_SERIAL_TX_GPIO           GPIO_UART7_TX
-//#define PX4IO_SERIAL_RX_GPIO           GPIO_UART7_RX
-//#define PX4IO_SERIAL_BASE              STM32_UART7_BASE
-//#define PX4IO_SERIAL_VECTOR            STM32_IRQ_UART7
-//#define PX4IO_SERIAL_TX_DMAMAP         DMAMAP_UART7_TX
-//#define PX4IO_SERIAL_RX_DMAMAP         DMAMAP_UART7_RX
-//#define PX4IO_SERIAL_RCC_REG           STM32_RCC_APB1ENR
-//#define PX4IO_SERIAL_RCC_EN            RCC_APB1LENR_UART7EN
-//#define PX4IO_SERIAL_CLOCK             STM32_PCLK2_FREQUENCY
-//#define PX4IO_SERIAL_BITRATE           1500000               /* 1.5Mbps -> max rate for IO */
-
-
 /* LEDs */
 #define GPIO_nLED_AMBER        /* PD10 */ (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTD|GPIO_PIN10)
 #define GPIO_nLED_SAFETY       /* PE5 */  (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN5)

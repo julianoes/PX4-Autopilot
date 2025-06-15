@@ -86,6 +86,9 @@
 
 #include "px4io_driver.h"
 
+#undef PX4_DEBUG
+#define PX4_DEBUG PX4_INFO
+
 #define PX4IO_SET_DEBUG			_IOC(0xff00, 0)
 #define PX4IO_REBOOT_BOOTLOADER		_IOC(0xff00, 1)
 #define PX4IO_CHECK_CRC			_IOC(0xff00, 2)
@@ -419,6 +422,11 @@ int PX4IO::init()
 	_max_controls  = io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_CONTROL_COUNT);
 	_max_transfer  = io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_MAX_TRANSFER) - 2;
 	_max_rc_input  = io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_RC_INPUT_COUNT);
+
+	printf("max_actuators: %d\n", _max_actuators);
+	printf("max_controls: %d\n", _max_controls);
+	printf("max_transfer: %d\n", _max_transfer);
+	printf("max_rc_input: %d\n", _max_rc_input);
 
 	if ((_max_actuators < 1) || (_max_actuators > PX4IO_MAX_ACTUATORS) ||
 	    (_max_transfer < 16) || (_max_transfer > 255)  ||

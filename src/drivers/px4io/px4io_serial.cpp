@@ -175,6 +175,13 @@ PX4IO_serial::read(unsigned address, void *data, unsigned count)
 		_io_buffer_ptr->crc = 0;
 		_io_buffer_ptr->crc = crc_packet(_io_buffer_ptr);
 
+		//printf("sending packet with crc: %d and count: %d\n", _io_buffer_ptr->crc, count);
+		//printf("packet bytes: ");
+		//for (unsigned i = 0; i < sizeof(IOPacket); i++) {
+		//	printf("%02x ", ((uint8_t *)_io_buffer_ptr)[i]);
+		//}
+		//printf("\n");
+
 		/* start the transaction and wait for it to complete */
 		result = _bus_exchange(_io_buffer_ptr);
 
@@ -208,6 +215,7 @@ PX4IO_serial::read(unsigned address, void *data, unsigned count)
 		}
 
 		perf_count(_pc_retries);
+		printf("retries: %d\n", retries);
 	}
 
 	px4_sem_post(&_bus_semaphore);

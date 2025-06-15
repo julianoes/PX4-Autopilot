@@ -38,5 +38,4 @@ px4_add_module(
 	SRCS
 		cubered_io.cpp
 		cubered_io.h
-	DEPENDS
 )

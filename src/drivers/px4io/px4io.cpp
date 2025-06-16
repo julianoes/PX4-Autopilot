@@ -537,10 +537,10 @@ void PX4IO::Run()
 		_poll_last = hrt_absolute_time();
 
 		/* pull status and alarms from IO */
-		io_get_status();
+		//io_get_status();
 
 		/* get raw R/C input from IO */
-		io_publish_raw_rc();
+		//io_publish_raw_rc();
 	}
 
 	/* check updates on uORB topics and handle it */
@@ -640,7 +640,7 @@ void PX4IO::Run()
 	}
 
 	// minimal backup scheduling
-	ScheduleDelayed(20_ms);
+	ScheduleDelayed(1000_ms);
 
 	// check at end of cycle (updateSubscriptions() can potentially change to a different WorkQueue thread)
 	_mixing_output.updateSubscriptions(true);
@@ -1188,7 +1188,8 @@ int PX4IO::io_reg_set(uint8_t page, uint8_t offset, uint16_t value)
 
 int PX4IO::io_reg_get(uint8_t page, uint8_t offset, uint16_t *values, unsigned num_values)
 {
-	/* range check the transfer */
+	//PX4_INFO("FMU io_reg_get: page=%u, offset=%u, num_values=%u", page, offset, num_values);
+
 	if (num_values > ((_max_transfer) / sizeof(*values))) {
 		PX4_DEBUG("io_reg_get: too many registers (%u, max %u)", num_values, _max_transfer / 2);
 		return -EINVAL;
@@ -1200,6 +1201,11 @@ int PX4IO::io_reg_get(uint8_t page, uint8_t offset, uint16_t *values, unsigned n
 
 	if (ret != (int)num_values) {
 		PX4_DEBUG("io_reg_get(%" PRIu8 ",%" PRIu8 ",%u): data error %d", page, offset, num_values, ret);
+		printf("FMU io_reg_get error: ret %d instead of %d: ", ret, num_values);
+		for (unsigned i = 0; i < num_values; ++i) {
+			printf("%u", values[i]);
+		}
+		printf("\n");
 		return -1;
 	}
 

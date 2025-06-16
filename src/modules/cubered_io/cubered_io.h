@@ -82,7 +82,11 @@ public:
 	/** @see ModuleBase */
 	static int print_usage(const char *reason = nullptr);
 
+	/** @see ModuleBase */
+	int print_status() override;
+
 	bool init();
+	void run() override;
 
 private:
 	static constexpr const char *DEVICE_NAME = "/dev/ttyS4";
@@ -90,36 +94,25 @@ private:
 	static constexpr int POLL_TIMEOUT_MS = 1; // 10ms timeout for low latency
 
 	int _serial_fd{-1};
-	bool _task_should_exit{false};
+	px4::atomic<bool> _task_should_exit{false};
 
 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": loop")};
 	perf_counter_t _loop_interval_perf{perf_alloc(PC_INTERVAL, MODULE_NAME": loop interval")};
 
-	void run();
+	void poll_and_process();
+	void process_received_data(IOPacket &packet);
+	void send_response(IOPacket &packet);
+	void send_packet(IOPacket &packet);
+	void send_error_response();
+	void send_corrupt_response();
+	void handle_read_request(IOPacket &packet);
+	void handle_write_request(IOPacket &packet);
+	bool validate_crc(IOPacket &packet);
+	uint8_t calculate_crc(IOPacket &packet);
 
 	static int run_trampoline(int argc, char *argv[]);
 
 	int init_serial();
 
-	void poll_and_process();
-
-	void process_received_data(IOPacket &packet);
-
-	void send_response(IOPacket &packet);
-
-	bool validate_crc(IOPacket &packet);
-
-	void handle_read_request(IOPacket &packet);
-
-	void handle_write_request(IOPacket &packet);
-
-	void send_corrupt_response();
-
-	void send_error_response();
-
-	uint8_t calculate_crc(IOPacket &packet);
-
-	void send_packet(IOPacket &packet);
-
-
+	bool should_exit() const { return _task_should_exit.load(); }
 };

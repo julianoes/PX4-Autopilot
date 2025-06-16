@@ -86,10 +86,10 @@ static const uint16_t config_page[] = {
 };
 
 // Status page data
-static uint16_t status_page[] = {
+static uint16_t status_page[8] = {
 	0,				// PX4IO_P_STATUS_FREEMEM
 	0,				// PX4IO_P_STATUS_CPULOAD
-	0,				// PX4IO_P_STATUS_FLAGS
+	PX4IO_P_STATUS_FLAGS_INIT_OK | PX4IO_P_STATUS_FLAGS_ARM_SYNC,	// PX4IO_P_STATUS_FLAGS
 	0,				// PX4IO_P_STATUS_ALARMS
 	0,				// PX4IO_P_STATUS_VSERVO
 	0,				// PX4IO_P_STATUS_VRSSI
@@ -97,11 +97,11 @@ static uint16_t status_page[] = {
 	0,				// PX4IO_P_STATUS_MIXER
 };
 
-// Actuator outputs (-10000..10000)
-static uint16_t actuators_page[8] = {0};
-
 // Servo PWM values (microseconds)
 static uint16_t servos_page[8] = {0};
+
+// Direct PWM values (microseconds)
+static uint16_t direct_pwm_page[8] = {0};
 
 // Raw RC input values
 static uint16_t raw_rc_input_page[] = {
@@ -145,6 +145,8 @@ static uint16_t setup_page[] = {
 	0,					// PX4IO_P_SETUP_PWM_RATE_GROUP1
 	0,					// PX4IO_P_SETUP_PWM_RATE_GROUP2
 	0,					// PX4IO_P_SETUP_PWM_RATE_GROUP3
+	0,					// PX4IO_P_SETUP_SAFETY_BUTTON_ACK
+	0,					// PX4IO_P_SETUP_SAFETY_OFF
 };
 
 CuberedIO::CuberedIO()
@@ -376,7 +378,7 @@ void CuberedIO::send_response(IOPacket &packet)
 			}
 
 		} else {
-			//PX4_DEBUG("Sent %zu bytes to CubeRed Primary", packet_size);
+			//PX4_INFO("Sent %zu bytes to CubeRed Primary", packet_size);
 		}
 	}
 }
@@ -439,8 +441,7 @@ uint8_t CuberedIO::calculate_crc(IOPacket &packet)
 
 void CuberedIO::handle_read_request(IOPacket &packet)
 {
-	//PX4_DEBUG("Read request: page=%u, offset=%u, count=%u",
-	//	 packet.page, packet.offset, PKT_COUNT(packet));
+	//PX4_INFO("Read request: page=%u, offset=%u, count=%u", packet.page, packet.offset, PKT_COUNT(packet));
 
 	uint8_t offset = packet.offset;
 	uint8_t count = PKT_COUNT(packet);
@@ -462,18 +463,20 @@ void CuberedIO::handle_read_request(IOPacket &packet)
 		break;
 
 	case PX4IO_PAGE_STATUS:
-		// Copy requested status data
+		//PX4_INFO("status_page size: %zu", sizeof(status_page)/sizeof(status_page[0]));
 		for (uint8_t i = 0; i < count && (offset + i) < sizeof(status_page)/sizeof(status_page[0]); i++) {
 			response.regs[i] = status_page[offset + i];
+			//PX4_INFO("  status_page[%u] = %u (0x%04x)", offset + i, status_page[offset + i], status_page[offset + i]);
 		}
+		//printf("responding with count %u\n", count);
 		break;
 
-	//case PX4IO_PAGE_ACTUATORS:
-	//	// Copy requested actuator data
-	//	for (uint8_t i = 0; i < count && (offset + i) < sizeof(actuators_page)/sizeof(actuators_page[0]); i++) {
-	//		response.regs[i] = actuators_page[offset + i];
-	//	}
-	//	break;
+	case PX4IO_PAGE_DIRECT_PWM:
+		// Copy requested direct PWM data
+		for (uint8_t i = 0; i < count && (offset + i) < sizeof(direct_pwm_page)/sizeof(direct_pwm_page[0]); i++) {
+			response.regs[i] = direct_pwm_page[offset + i];
+		}
+		break;
 
 	case PX4IO_PAGE_SERVOS:
 		// Copy requested servo data
@@ -536,8 +539,14 @@ void CuberedIO::handle_read_request(IOPacket &packet)
 
 void CuberedIO::handle_write_request(IOPacket &packet)
 {
-	PX4_DEBUG("Write request: page=%u, offset=%u, count=%u",
-		 packet.page, packet.offset, PKT_COUNT(packet));
+	// Only print unsupported pages
+	if (packet.page != PX4IO_PAGE_SETUP &&
+	    packet.page != PX4IO_PAGE_DIRECT_PWM &&
+	    packet.page != PX4IO_PAGE_FAILSAFE_PWM &&
+	    packet.page != PX4IO_PAGE_DISARMED_PWM) {
+		PX4_DEBUG("Write request: page=%u, offset=%u, count=%u",
+			 packet.page, packet.offset, PKT_COUNT(packet));
+	}
 
 	uint8_t offset = packet.offset;
 	uint8_t count = PKT_COUNT(packet);
@@ -551,10 +560,10 @@ void CuberedIO::handle_write_request(IOPacket &packet)
 		}
 		break;
 
-	case PX4IO_PAGE_ACTUATORS:
-		// Update actuator data
-		for (uint8_t i = 0; i < count && (offset + i) < sizeof(actuators_page)/sizeof(actuators_page[0]); i++) {
-			actuators_page[offset + i] = packet.regs[i];
+	case PX4IO_PAGE_DIRECT_PWM:
+		// Update direct PWM data
+		for (uint8_t i = 0; i < count && (offset + i) < sizeof(direct_pwm_page)/sizeof(direct_pwm_page[0]); i++) {
+			direct_pwm_page[offset + i] = packet.regs[i];
 		}
 		break;
 
@@ -648,10 +657,48 @@ void CuberedIO::send_packet(IOPacket &packet)
 	packet.crc = 0; // Clear CRC before calculation
 	packet.crc = crc_packet(&packet);
 
-	//printf("Send %u +%u (c: %u, s:%zu)\n",
-	//	 packet.page, packet.offset, PKT_COUNT(packet), packet_size);
+	//printf("Send packet: page=%u offset=%u count=%u size=%zu crc=0x%02x\n",
+	//       packet.page, packet.offset, PKT_COUNT(packet), packet_size, packet.crc);
+	//printf("Packet bytes: ");
+	//for (unsigned i = 0; i < packet_size; i++) {
+	//	printf("%02x ", ((uint8_t *)&packet)[i]);
+	//}
+	//printf("\n");
 
 	send_response(packet);
+}
+
+int CuberedIO::print_status()
+{
+	PX4_INFO("CuberedIO Status:");
+	PX4_INFO("  Setup Page (50):");
+	PX4_INFO("    Features: 0x%04x", setup_page[PX4IO_P_SETUP_FEATURES]);
+	PX4_INFO("    Arming: 0x%04x", setup_page[PX4IO_P_SETUP_ARMING]);
+	PX4_INFO("    PWM Rates: 0x%04x", setup_page[PX4IO_P_SETUP_PWM_RATES]);
+	PX4_INFO("    Default Rate: %u Hz", setup_page[PX4IO_P_SETUP_PWM_DEFAULTRATE]);
+	PX4_INFO("    Alt Rate: %u Hz", setup_page[PX4IO_P_SETUP_PWM_ALTRATE]);
+	PX4_INFO("    SBUS Rate: %u Hz", setup_page[PX4IO_P_SETUP_SBUS_RATE]);
+	PX4_INFO("    VServo Scale: %u", setup_page[PX4IO_P_SETUP_VSERVO_SCALE]);
+	PX4_INFO("    Debug Level: %u", setup_page[PX4IO_P_SETUP_SET_DEBUG]);
+	PX4_INFO("    Thermal: %u", setup_page[PX4IO_P_SETUP_THERMAL]);
+	PX4_INFO("    Flight Termination: %u", setup_page[PX4IO_P_SETUP_ENABLE_FLIGHTTERMINATION]);
+
+	PX4_INFO("  Direct PWM Page (54):");
+	for (int i = 0; i < 8; i++) {
+		PX4_INFO("    Channel %d: %u", i, pwm_info_page[i]);
+	}
+
+	PX4_INFO("  Failsafe PWM Page (55):");
+	for (int i = 0; i < 8; i++) {
+		PX4_INFO("    Channel %d: %u", i, failsafe_pwm_page[i]);
+	}
+
+	PX4_INFO("  Disarmed PWM Page (109):");
+	for (int i = 0; i < 8; i++) {
+		PX4_INFO("    Channel %d: %u", i, disarmed_pwm_page[i]);
+	}
+
+	return 0;
 }
 
 extern "C" __EXPORT int cubered_io_main(int argc, char *argv[])

@@ -1202,9 +1202,11 @@ int PX4IO::io_reg_get(uint8_t page, uint8_t offset, uint16_t *values, unsigned n
 	if (ret != (int)num_values) {
 		PX4_DEBUG("io_reg_get(%" PRIu8 ",%" PRIu8 ",%u): data error %d", page, offset, num_values, ret);
 		printf("FMU io_reg_get error: ret %d instead of %d: ", ret, num_values);
+
 		for (unsigned i = 0; i < num_values; ++i) {
 			printf("%u", values[i]);
 		}
+
 		printf("\n");
 		return -1;
 	}

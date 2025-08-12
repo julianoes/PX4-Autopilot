@@ -6,5 +6,8 @@
 board_adc start
 
 
-# SPI1
-icm42688p -s -b 2 -R 10 -c 12 start
+# SPI2
+if ! icm42688p -s -b 2 -R 10 -c 12 -q start
+then
+	icm45686 -s -b 2 -R 10 -c 12 start
+fi

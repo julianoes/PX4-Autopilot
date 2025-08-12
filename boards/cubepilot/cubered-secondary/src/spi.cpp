@@ -36,12 +36,9 @@
 #include <nuttx/spi/spi.h>
 
 constexpr px4_spi_bus_t px4_spi_buses[SPI_BUS_MAX_BUS_ITEMS] = {
-	initSPIBus(SPI::Bus::SPI1, {
-	}),
-
 	initSPIBus(SPI::Bus::SPI2, {
+		initSPIDevice(DRV_IMU_DEVTYPE_ICM42688P, SPI::CS{GPIO::PortB, GPIO::Pin12}),
 		initSPIDevice(DRV_IMU_DEVTYPE_ICM45686, SPI::CS{GPIO::PortB, GPIO::Pin12}),
-
 	}),
 };
 

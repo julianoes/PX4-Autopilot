@@ -43,8 +43,11 @@
 #define DMAMAP_SPI4_RX    DMAMAP_DMA12_SPI4RX_0
 #define DMAMAP_SPI4_TX    DMAMAP_DMA12_SPI4TX_0
 
-#define DMAMAP_UART7_RX   DMAMAP_DMA12_UART7RX_1
-#define DMAMAP_UART7_TX   DMAMAP_DMA12_UART7TX_1
+// Note: the UART7_RX must not be on DMA channel 1. Channels 0, 2, 3, ... seem to be ok.
+//       if it is on channel 1 we see weird cache coherency issues. Suddenly the last two chars are
+//       "leftovers" from previous FIFO buffer rounds.
+#define DMAMAP_UART7_RX   DMAMAP_DMA12_UART7RX_0
+#define DMAMAP_UART7_TX   DMAMAP_DMA12_UART7TX_0
 
 // DMA 2
 // Timer 1

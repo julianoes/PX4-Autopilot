@@ -205,34 +205,14 @@
 /* FLASH wait states */
 #define BOARD_FLASH_WAITSTATES 2
 
-/* SDMMC definitions ********************************************************/
-/* Init 400kHz, freq = PLL1Q/(2*div)  div =  PLL1Q/(2*freq) */
-#define STM32_SDMMC_INIT_CLKDIV     (125 << STM32_SDMMC_CLKCR_CLKDIV_SHIFT)
-
-/* 25 MHz Max for now, 25 mHZ = PLL1Q/(2*div), div = PLL1Q/(2*freq)
- * div = 100 / (2*25)
- */
-#define STM32_SDMMC_MMCXFR_CLKDIV   (2 << STM32_SDMMC_CLKCR_CLKDIV_SHIFT)
-#define STM32_SDMMC_SDXFR_CLKDIV    (2 << STM32_SDMMC_CLKCR_CLKDIV_SHIFT)
-
-#define STM32_SDMMC_CLKCR_EDGE      STM32_SDMMC_CLKCR_NEGEDGE
-
-
-/* Ethernet phy */
-#define GPIO_ETH_RMII_TX_EN	GPIO_ETH_RMII_TX_EN_1 /* PB11 */
-#define GPIO_ETH_RMII_TXD0	GPIO_ETH_RMII_TXD0_1  /* PB12 */
-#define GPIO_ETH_RMII_TXD1	GPIO_ETH_RMII_TXD1_1  /* PB13 */
-//#define GPIO_ETH_RMII_RXD0	GPIO_ETH_RMII_RXD0    /* PC4 */
-//#define GPIO_ETH_RMII_RXD1	GPIO_ETH_RMII_RXD1    /* PC5 */
-
 /* UART/USART */
 
-// USART2 -> /dev/ttyS0 -> Telem1
-// USART3 -> /dev/ttyS1 -> Spektrum DSM?
-// UART4 -> /dev/ttyS2 -> GPS2
-// USART6 -> /dev/ttyS3 -> Telem2
+// USART2 -> /dev/ttyS0 -> ?
+// USART3 -> /dev/ttyS1 -> debug/SWD connector
+// UART4 -> /dev/ttyS2 -> ?
+// USART6 -> /dev/ttyS3 -> ?
 // UART7 -> /dev/ttyS4 -> to Primary
-// UART8 -> /dev/ttyS5 -> console?
+// UART8 -> /dev/ttyS5 -> CONS
 
 #define GPIO_USART2_TX   GPIO_USART2_TX_2      /* PD5 */
 #define GPIO_USART2_RX   GPIO_USART2_RX_2      /* PD6 */
@@ -274,5 +254,5 @@
 
 #define GPIO_SPI2_SCK    ADJ_SLEW_RATE(GPIO_SPI2_SCK_4) /* PB13 */
 #define GPIO_SPI2_MISO   GPIO_SPI2_MISO_2               /* PC2 */
-#define GPIO_SPI2_MOSI   GPIO_SPI2_MISO_2               /* PC1 */
+#define GPIO_SPI2_MOSI   GPIO_SPI2_MOSI_2               /* PC1 */
 

@@ -89,9 +89,9 @@ public:
 	void run() override;
 
 private:
-	static constexpr const char *DEVICE_NAME = "/dev/ttyS4";
+	static constexpr const char *DEVICE_NAME = "/dev/ttyS1";
 	static constexpr speed_t BAUDRATE = B1500000;
-	static constexpr int POLL_TIMEOUT_MS = 1; // 10ms timeout for low latency
+	static constexpr int POLL_TIMEOUT_MS = 1; // 1ms timeout for low latency
 
 	int _serial_fd{-1};
 	px4::atomic<bool> _task_should_exit{false};

@@ -290,10 +290,14 @@ void CuberedIO::run()
 
 void CuberedIO::poll_and_process()
 {
+	const size_t min_packet_size = 6; // Minimum PX4IO packet size
+
+	// Always start fresh with clean buffer
 	IOPacket packet {};
 	size_t bytes_read = 0;
+	size_t expected_packet_size = min_packet_size;
 
-	while (bytes_read < sizeof(IOPacket)) {
+	while (bytes_read < expected_packet_size) {
 		pollfd fds[1];
 		fds[0].fd = _serial_fd;
 		fds[0].events = POLLIN;
@@ -306,25 +310,31 @@ void CuberedIO::poll_and_process()
 				int read_ret = ::read(_serial_fd, (reinterpret_cast<uint8_t *>(&packet)) + bytes_read, sizeof(IOPacket) - bytes_read);
 
 				if (read_ret > 0) {
-					//printf("read from %d to %d\n", bytes_read, bytes_read + read_ret);
-
-					//printf("packet bytes: ");
-					//for (unsigned i = 0; i < sizeof(IOPacket); i++) {
-					//	printf("%02x ", ((uint8_t *)&packet)[i]);
-					//}
-					//printf("\n");
 					bytes_read += read_ret;
 
-					// Check if packet has valid CRC
-					if (validate_crc(packet)) {
-						//printf("CRC OK at %d\n", bytes_read);
-						process_received_data(packet);
-						return;
-
-					} else {
-						//printf("CRC failed at %d\n", bytes_read);
-						// Continue loop to read more data
+					// Once we have at least min packet, try to determine actual size
+					if (bytes_read >= min_packet_size && expected_packet_size == min_packet_size) {
+						expected_packet_size = PKT_SIZE(packet);
 					}
+
+					// Check CRC when we have the complete packet
+					if (bytes_read >= expected_packet_size) {
+
+						if (validate_crc(packet)) {
+							//printf("CRC OK at %zu bytes\n", bytes_read);
+							process_received_data(packet);
+							return;
+
+						} else {
+							printf("CRC failed at %zu bytes - restarting\n", bytes_read);
+							// CRC failed - start fresh
+							bytes_read = 0;
+							expected_packet_size = min_packet_size;
+							packet = {};
+							continue;
+						}
+					}
+
 				} else if (read_ret < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
 					PX4_ERR("Read error: %s", strerror(errno));
 					return;
@@ -336,7 +346,10 @@ void CuberedIO::poll_and_process()
 			return;
 
 		} else {
-			// Timeout, start fresh.
+			// Timeout, start fresh with clean buffer
+			bytes_read = 0;
+			expected_packet_size = min_packet_size;
+			packet = {};
 			return;
 		}
 	}
@@ -376,9 +389,6 @@ void CuberedIO::send_response(IOPacket &packet)
 			} else {
 				PX4_WARN("Partial write: %zd of %zu bytes", bytes_written, packet_size);
 			}
-
-		} else {
-			//PX4_INFO("Sent %zu bytes to CubeRed Primary", packet_size);
 		}
 	}
 }
@@ -539,13 +549,14 @@ void CuberedIO::handle_read_request(IOPacket &packet)
 
 void CuberedIO::handle_write_request(IOPacket &packet)
 {
+	//PX4_DEBUG("Write request: page=%u, offset=%u, count=%u",
+	//	 packet.page, packet.offset, PKT_COUNT(packet));
+
 	// Only print unsupported pages
 	if (packet.page != PX4IO_PAGE_SETUP &&
 	    packet.page != PX4IO_PAGE_DIRECT_PWM &&
 	    packet.page != PX4IO_PAGE_FAILSAFE_PWM &&
 	    packet.page != PX4IO_PAGE_DISARMED_PWM) {
-		PX4_DEBUG("Write request: page=%u, offset=%u, count=%u",
-			 packet.page, packet.offset, PKT_COUNT(packet));
 	}
 
 	uint8_t offset = packet.offset;
@@ -656,14 +667,6 @@ void CuberedIO::send_packet(IOPacket &packet)
 	// Calculate and set CRC
 	packet.crc = 0; // Clear CRC before calculation
 	packet.crc = crc_packet(&packet);
-
-	//printf("Send packet: page=%u offset=%u count=%u size=%zu crc=0x%02x\n",
-	//       packet.page, packet.offset, PKT_COUNT(packet), packet_size, packet.crc);
-	//printf("Packet bytes: ");
-	//for (unsigned i = 0; i < packet_size; i++) {
-	//	printf("%02x ", ((uint8_t *)&packet)[i]);
-	//}
-	//printf("\n");
 
 	send_response(packet);
 }

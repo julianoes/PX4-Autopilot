@@ -173,14 +173,15 @@ private:
 
 	device::Device *const _interface;
 
-	unsigned		_hardware{0};		///< Hardware revision
-	unsigned		_max_actuators{0};		///< Maximum # of actuators supported by PX4IO
-	unsigned		_max_controls{0};		///< Maximum # of controls supported by PX4IO
-	unsigned		_max_rc_input{0};		///< Maximum receiver channels supported by PX4IO
-	unsigned		_max_transfer{16};		///< Maximum number of I2C transfers supported by PX4IO
+	uint16_t		_hardware{0};		///< Hardware revision
+	uint16_t		_max_actuators{0};		///< Maximum # of actuators supported by PX4IO
+	uint16_t		_max_controls{0};		///< Maximum # of controls supported by PX4IO
+	uint16_t		_max_rc_input{0};		///< Maximum receiver channels supported by PX4IO
+	uint16_t		_max_transfer{16};		///< Maximum number of I2C transfers supported by PX4IO
+
+	uint16_t    		_group_channels[PX4IO_P_SETUP_PWM_RATE_GROUP3 - PX4IO_P_SETUP_PWM_RATE_GROUP0 + 1] {};
 
 	bool			_first_update_cycle{true};
-	uint32_t    		_group_channels[PX4IO_P_SETUP_PWM_RATE_GROUP3 - PX4IO_P_SETUP_PWM_RATE_GROUP0 + 1] {};
 
 	hrt_abstime		_poll_last{0};
 
@@ -256,7 +257,7 @@ private:
 	int			io_publish_raw_rc();
 
 	/**
-	 * write register(s)
+	 * write registers
 	 *
 	 * @param page		Register page to write to.
 	 * @param offset	Register offset to start writing at.
@@ -264,7 +265,7 @@ private:
 	 * @param num_values	The number of values to write.
 	 * @return		OK if all values were successfully written.
 	 */
-	int			io_reg_set(uint8_t page, uint8_t offset, const uint16_t *values, unsigned num_values);
+	int			io_regs_set(uint8_t page, uint8_t offset, const uint16_t *values, unsigned num_values);
 
 	/**
 	 * write a register
@@ -274,10 +275,10 @@ private:
 	 * @param value		Value to write.
 	 * @return		OK if the value was written successfully.
 	 */
-	int			io_reg_set(uint8_t page, uint8_t offset, const uint16_t value);
+	int			io_reg_set(uint8_t page, uint8_t offset, uint16_t value);
 
 	/**
-	 * read register(s)
+	 * read registers
 	 *
 	 * @param page		Register page to read from.
 	 * @param offset	Register offset to start reading from.
@@ -285,17 +286,17 @@ private:
 	 * @param num_values	The number of values to read.
 	 * @return		OK if all values were successfully read.
 	 */
-	int			io_reg_get(uint8_t page, uint8_t offset, uint16_t *values, unsigned num_values);
+	int			io_regs_get(uint8_t page, uint8_t offset, uint16_t *values, unsigned num_values);
 
 	/**
 	 * read a register
 	 *
 	 * @param page		Register page to read from.
 	 * @param offset	Register offset to start reading from.
-	 * @return		Register value that was read, or _io_reg_get_error on error.
+	 * @param value		Read register value.
+	 * @return		Ok if read was successful.
 	 */
-	uint32_t		io_reg_get(uint8_t page, uint8_t offset);
-	static const uint32_t	_io_reg_get_error = 0x80000000;
+	int			io_reg_get(uint8_t page, uint8_t offset, uint16_t &value);
 
 	/**
 	 * modify a register
@@ -375,7 +376,7 @@ bool PX4IO::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS],
 
 	if (!_test_fmu_fail) {
 		/* output to the servos */
-		io_reg_set(PX4IO_PAGE_DIRECT_PWM, 0, outputs, num_outputs);
+		io_regs_set(PX4IO_PAGE_DIRECT_PWM, 0, outputs, num_outputs);
 	}
 
 	return true;
@@ -394,16 +395,24 @@ int PX4IO::init()
 	}
 
 	/* get some parameters */
-	unsigned protocol;
+	uint16_t protocol;
 	hrt_abstime start_try_time = hrt_absolute_time();
 
 	do {
 		px4_usleep(2000);
-		protocol = io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_PROTOCOL_VERSION);
-	} while (protocol == _io_reg_get_error && (hrt_elapsed_time(&start_try_time) < 700U * 1000U));
+		ret = io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_PROTOCOL_VERSION, protocol);
+	} while (ret != OK && (hrt_elapsed_time(&start_try_time) < 700U * 1000U));
+
+	if (ret == OK) {
+		printf("Got protocol: %d\n", protocol);
+
+	} else {
+		printf("Error: %d\n", ret);
+		return -1;
+	}
 
 	/* if the error still persists after timing out, we give up */
-	if (protocol == _io_reg_get_error) {
+	if (ret != OK) {
 		mavlink_log_emergency(&_mavlink_log_pub, "Failed to communicate with IO, abort.\t");
 		events::send(events::ID("px4io_comm_failed"), events::Log::Emergency,
 			     "Failed to communicate with IO, aborting initialization");
@@ -417,11 +426,13 @@ int PX4IO::init()
 		return -1;
 	}
 
-	_hardware      = io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_HARDWARE_VERSION);
-	_max_actuators = io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_ACTUATOR_COUNT);
-	_max_controls  = io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_CONTROL_COUNT);
-	_max_transfer  = io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_MAX_TRANSFER) - 2;
-	_max_rc_input  = io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_RC_INPUT_COUNT);
+
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_HARDWARE_VERSION, _hardware);
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_ACTUATOR_COUNT, _max_actuators);
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_CONTROL_COUNT, _max_controls);
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_MAX_TRANSFER, _max_transfer);
+	_max_transfer -= 2;
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_RC_INPUT_COUNT, _max_rc_input);
 
 	printf("max_actuators: %d\n", _max_actuators);
 	printf("max_controls: %d\n", _max_controls);
@@ -447,8 +458,13 @@ int PX4IO::init()
 		return -1;
 	}
 
+
 	/* Set safety_off to false when FMU boot*/
-	io_reg_set(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_SAFETY_OFF, 0);
+	ret = io_reg_set(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_SAFETY_OFF, 0);
+
+	if (ret != OK) {
+		return -1;
+	}
 
 	if (_max_rc_input > input_rc_s::RC_INPUT_MAX_CHANNELS) {
 		_max_rc_input = input_rc_s::RC_INPUT_MAX_CHANNELS;
@@ -457,15 +473,16 @@ int PX4IO::init()
 	uint16_t reg = 0;
 
 	/* get IO's last seen FMU state */
-	ret = io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_ARMING, &reg, sizeof(reg));
+	ret = io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_ARMING, reg);
 
 	if (ret != OK) {
 		return ret;
 	}
 
 	/* dis-arm IO before touching anything */
-	io_reg_modify(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_ARMING, PX4IO_P_SETUP_ARMING_FMU_ARMED | PX4IO_P_SETUP_ARMING_LOCKDOWN,
-		      0);
+	ret = io_reg_modify(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_ARMING,
+			    PX4IO_P_SETUP_ARMING_FMU_ARMED | PX4IO_P_SETUP_ARMING_LOCKDOWN,
+			    0);
 
 	if (ret != OK) {
 		mavlink_log_critical(&_mavlink_log_pub, "IO RC config upload fail\t");
@@ -477,7 +494,11 @@ int PX4IO::init()
 	/* initialize _group_channels */
 	for (uint8_t group = PX4IO_P_SETUP_PWM_RATE_GROUP0; group <= PX4IO_P_SETUP_PWM_RATE_GROUP3; ++group) {
 		unsigned group_idx = group - PX4IO_P_SETUP_PWM_RATE_GROUP0;
-		_group_channels[group_idx] = io_reg_get(PX4IO_PAGE_PWM_INFO, PX4IO_RATE_MAP_BASE + group_idx);
+		ret = io_reg_get(PX4IO_PAGE_PWM_INFO, PX4IO_RATE_MAP_BASE + group_idx, _group_channels[group_idx]);
+
+		if (ret != OK) {
+			return -1;
+		}
 	}
 
 	/* try to claim the generic PWM output device node as well - it's OK if we fail at this */
@@ -500,7 +521,7 @@ void PX4IO::updateDisarmed()
 		values[i] = _mixing_output.disarmedValue(i);
 	}
 
-	io_reg_set(PX4IO_PAGE_DISARMED_PWM, 0, values, _max_actuators);
+	io_regs_set(PX4IO_PAGE_DISARMED_PWM, 0, values, _max_actuators);
 }
 
 void PX4IO::updateFailsafe()
@@ -511,7 +532,7 @@ void PX4IO::updateFailsafe()
 		values[i] = _mixing_output.actualFailsafeValue(i);
 	}
 
-	io_reg_set(PX4IO_PAGE_FAILSAFE_PWM, 0, values, _max_actuators);
+	io_regs_set(PX4IO_PAGE_FAILSAFE_PWM, 0, values, _max_actuators);
 }
 
 void PX4IO::Run()
@@ -684,7 +705,7 @@ void PX4IO::updateTimerRateGroups()
 		++timer;
 	}
 
-	int ret = io_reg_set(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_PWM_RATE_GROUP0, timer_rates, timer);
+	int ret = io_regs_set(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_PWM_RATE_GROUP0, timer_rates, timer);
 
 	if (ret != 0) {
 		PX4_ERR("io_reg_set failed (%i)", ret);
@@ -930,7 +951,7 @@ int PX4IO::io_get_status()
 	 * STATUS_VSERVO, STATUS_VRSSI
 	 * in that order */
 	uint16_t regs[6] {};
-	int ret = io_reg_get(PX4IO_PAGE_STATUS, PX4IO_P_STATUS_FLAGS, &regs[0], sizeof(regs) / sizeof(regs[0]));
+	int ret = io_regs_get(PX4IO_PAGE_STATUS, PX4IO_P_STATUS_FLAGS, &regs[0], sizeof(regs) / sizeof(regs[0]));
 
 	if (ret != OK) {
 		return ret;
@@ -955,7 +976,8 @@ int PX4IO::io_get_status()
 		_analog_rc_rssi_stable = true;
 	}
 
-	const uint16_t SETUP_ARMING = io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_ARMING);
+	uint16_t SETUP_ARMING;
+	io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_ARMING, SETUP_ARMING);
 
 	if ((hrt_elapsed_time(&_last_status_publish) >= 1_s)
 	    || (_status != STATUS_FLAGS)
@@ -968,7 +990,7 @@ int PX4IO::io_get_status()
 		status.voltage_v = STATUS_VSERVO * 0.001f; // voltage is scaled to mV
 		status.rssi_v = rssi_v;
 
-		status.free_memory_bytes = io_reg_get(PX4IO_PAGE_STATUS, PX4IO_P_STATUS_FREEMEM);
+		io_reg_get(PX4IO_PAGE_STATUS, PX4IO_P_STATUS_FREEMEM, status.free_memory_bytes);
 
 		// PX4IO_P_STATUS_FLAGS
 		status.status_outputs_armed   = STATUS_FLAGS & PX4IO_P_STATUS_FLAGS_OUTPUTS_ARMED;
@@ -1000,9 +1022,9 @@ int PX4IO::io_get_status()
 		status.arming_termination_failsafe = SETUP_ARMING & PX4IO_P_SETUP_ARMING_TERMINATION_FAILSAFE;
 
 		for (unsigned i = 0; i < _max_actuators; i++) {
-			status.pwm[i] = io_reg_get(PX4IO_PAGE_SERVOS, i);
-			status.pwm_disarmed[i] = io_reg_get(PX4IO_PAGE_DISARMED_PWM, i);
-			status.pwm_failsafe[i] = io_reg_get(PX4IO_PAGE_FAILSAFE_PWM, i);
+			io_reg_get(PX4IO_PAGE_SERVOS, i, status.pwm[i]);
+			io_reg_get(PX4IO_PAGE_DISARMED_PWM, i, status.pwm_disarmed[i]);
+			io_reg_get(PX4IO_PAGE_FAILSAFE_PWM, i, status.pwm_failsafe[i]);
 		}
 
 		{
@@ -1010,14 +1032,15 @@ int PX4IO::io_get_status()
 
 			for (uint8_t offset = PX4IO_P_SETUP_PWM_RATE_GROUP0; offset <= PX4IO_P_SETUP_PWM_RATE_GROUP3; ++offset) {
 				// This is a bit different than below, setting the groups, not the channels
-				status.pwm_rate_hz[i++] = io_reg_get(PX4IO_PAGE_SETUP, offset);
+				io_reg_get(PX4IO_PAGE_SETUP, offset, status.pwm_rate_hz[i++]);
 			}
 		}
 
-		uint16_t raw_inputs = io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_COUNT);
+		uint16_t raw_inputs = 0;
+		io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_COUNT, raw_inputs);
 
 		for (unsigned i = 0; (i < raw_inputs) && (i < _max_rc_input); i++) {
-			status.raw_inputs[i] = io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_BASE + i);
+			io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_BASE + i, status.raw_inputs[i]);
 		}
 
 		status.timestamp = hrt_absolute_time();
@@ -1034,7 +1057,8 @@ int PX4IO::io_get_status()
 
 int PX4IO::io_publish_raw_rc()
 {
-	const uint16_t rc_valid_update_count = io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_FRAME_COUNT);
+	uint16_t rc_valid_update_count = 0;
+	io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_FRAME_COUNT, rc_valid_update_count);
 	const bool rc_updated = (rc_valid_update_count != _rc_valid_update_count);
 	_rc_valid_update_count = rc_valid_update_count;
 
@@ -1059,7 +1083,7 @@ int PX4IO::io_publish_raw_rc()
 	 *
 	 * This should be the common case (9 channel R/C control being a reasonable upper bound).
 	 */
-	int ret = io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_COUNT, &regs[0], prolog + 9);
+	int ret = io_regs_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_COUNT, &regs[0], prolog + 9);
 
 	if (ret != OK) {
 		return ret;
@@ -1108,7 +1132,7 @@ int PX4IO::io_publish_raw_rc()
 	/* input_rc.input_source is set after this call XXX we might want to mirror the flags in the RC struct */
 
 	if (channel_count > 9) {
-		ret = io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_BASE + 9, &regs[prolog + 9], channel_count - 9);
+		ret = io_regs_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_BASE + 9, &regs[prolog + 9], channel_count - 9);
 
 		if (ret != OK) {
 			return ret;
@@ -1161,11 +1185,11 @@ int PX4IO::io_publish_raw_rc()
 	return ret;
 }
 
-int PX4IO::io_reg_set(uint8_t page, uint8_t offset, const uint16_t *values, unsigned num_values)
+int PX4IO::io_regs_set(uint8_t page, uint8_t offset, const uint16_t *values, unsigned num_values)
 {
 	/* range check the transfer */
 	if (num_values > ((_max_transfer) / sizeof(*values))) {
-		PX4_DEBUG("io_reg_set: too many registers (%u, max %u)", num_values, _max_transfer / 2);
+		PX4_DEBUG("io_regs_set: too many registers (%u, max %u)", num_values, _max_transfer / 2);
 		return -EINVAL;
 	}
 
@@ -1174,7 +1198,8 @@ int PX4IO::io_reg_set(uint8_t page, uint8_t offset, const uint16_t *values, unsi
 	perf_end(_interface_write_perf);
 
 	if (ret != (int)num_values) {
-		PX4_DEBUG("io_reg_set(%" PRIu8 ",%" PRIu8 ",%u): error %d", page, offset, num_values, ret);
+		PX4_DEBUG("io_regs_set(%" PRIu8 ",%" PRIu8 ",%u): error %d, errno: %d: %s", page, offset, num_values, ret, errno,
+			  strerror(errno));
 		return -1;
 	}
 
@@ -1183,15 +1208,15 @@ int PX4IO::io_reg_set(uint8_t page, uint8_t offset, const uint16_t *values, unsi
 
 int PX4IO::io_reg_set(uint8_t page, uint8_t offset, uint16_t value)
 {
-	return io_reg_set(page, offset, &value, 1);
+	return io_regs_set(page, offset, &value, 1);
 }
 
-int PX4IO::io_reg_get(uint8_t page, uint8_t offset, uint16_t *values, unsigned num_values)
+int PX4IO::io_regs_get(uint8_t page, uint8_t offset, uint16_t *values, unsigned num_values)
 {
 	//PX4_INFO("FMU io_reg_get: page=%u, offset=%u, num_values=%u", page, offset, num_values);
 
 	if (num_values > ((_max_transfer) / sizeof(*values))) {
-		PX4_DEBUG("io_reg_get: too many registers (%u, max %u)", num_values, _max_transfer / 2);
+		PX4_DEBUG("io_regs_get: too many registers (%u, max %u)", num_values, _max_transfer / 2);
 		return -EINVAL;
 	}
 
@@ -1204,7 +1229,7 @@ int PX4IO::io_reg_get(uint8_t page, uint8_t offset, uint16_t *values, unsigned n
 		printf("FMU io_reg_get error: ret %d instead of %d: ", ret, num_values);
 
 		for (unsigned i = 0; i < num_values; ++i) {
-			printf("%u", values[i]);
+			printf("%u ", values[i]);
 		}
 
 		printf("\n");
@@ -1214,21 +1239,15 @@ int PX4IO::io_reg_get(uint8_t page, uint8_t offset, uint16_t *values, unsigned n
 	return OK;
 }
 
-uint32_t PX4IO::io_reg_get(uint8_t page, uint8_t offset)
+int PX4IO::io_reg_get(uint8_t page, uint8_t offset, uint16_t &value)
 {
-	uint16_t value;
-
-	if (io_reg_get(page, offset, &value, 1) != OK) {
-		return _io_reg_get_error;
-	}
-
-	return value;
+	return io_regs_get(page, offset, &value, 1);
 }
 
 int PX4IO::io_reg_modify(uint8_t page, uint8_t offset, uint16_t clearbits, uint16_t setbits)
 {
 	uint16_t value = 0;
-	int ret = io_reg_get(page, offset, &value, 1);
+	int ret = io_regs_get(page, offset, &value, 1);
 
 	if (ret != OK) {
 		return ret;
@@ -1243,20 +1262,24 @@ int PX4IO::io_reg_modify(uint8_t page, uint8_t offset, uint16_t clearbits, uint1
 int PX4IO::print_status()
 {
 	/* basic configuration */
-	printf("protocol %" PRIu32 " hardware %" PRIu32 " bootloader %" PRIu32 " buffer %" PRIu32 "B crc 0x%04" PRIu32 "%04"
-	       PRIu32 "\n",
-	       io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_PROTOCOL_VERSION),
-	       io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_HARDWARE_VERSION),
-	       io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_BOOTLOADER_VERSION),
-	       io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_MAX_TRANSFER),
-	       io_reg_get(PX4IO_PAGE_SETUP,  PX4IO_P_SETUP_CRC),
-	       io_reg_get(PX4IO_PAGE_SETUP,  PX4IO_P_SETUP_CRC + 1));
+	uint16_t protocol, hardware, bootloader, buffer, crc0, crc1;
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_PROTOCOL_VERSION, protocol);
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_HARDWARE_VERSION, hardware);
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_BOOTLOADER_VERSION, bootloader);
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_MAX_TRANSFER, buffer);
+	io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_CRC, crc0);
+	io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_CRC + 1, crc1);
+	printf("protocol %" PRIu16 " hardware %" PRIu16 " bootloader %" PRIu16 " buffer %" PRIu16 "B crc 0x%04" PRIx16 "%04"
+	       PRIx16 "\n",
+	       protocol, hardware, bootloader, buffer, crc0, crc1);
 
-	printf("%" PRIu32 " controls %" PRIu32 " actuators %" PRIu32 " R/C inputs %" PRIu32 " analog inputs\n",
-	       io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_CONTROL_COUNT),
-	       io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_ACTUATOR_COUNT),
-	       io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_RC_INPUT_COUNT),
-	       io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_ADC_INPUT_COUNT));
+	uint16_t controls, actuators, rc_inputs, adc_input_count;
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_CONTROL_COUNT, controls);
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_ACTUATOR_COUNT, actuators);
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_RC_INPUT_COUNT, rc_inputs);
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_ADC_INPUT_COUNT, adc_input_count);
+	printf("%" PRIu16 " controls %" PRIu16 " actuators %" PRIu16 " R/C inputs %" PRIu16 " analog inputs\n",
+	       controls, actuators, rc_inputs, adc_input_count);
 
 	/* status */
 	uORB::SubscriptionData<px4io_status_s> status_sub{ORB_ID(px4io_status)};
@@ -1269,37 +1292,49 @@ int PX4IO::print_status()
 
 	printf("\n");
 
-	uint16_t raw_inputs = io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_COUNT);
+	uint16_t raw_inputs;
+	io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_COUNT, raw_inputs);
 	printf("%" PRIu16 " raw R/C inputs", raw_inputs);
 
 	for (unsigned i = 0; i < raw_inputs; i++) {
-		printf(" %" PRIu32, io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_BASE + i));
+		uint16_t value = 0;
+		io_reg_get(PX4IO_PAGE_RAW_RC_INPUT, PX4IO_P_RAW_RC_BASE + i, value);
+		printf(" %" PRIu16, value);
 	}
 
 	printf("\n");
-	uint16_t adc_inputs = io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_ADC_INPUT_COUNT);
+	uint16_t adc_inputs;
+	io_reg_get(PX4IO_PAGE_CONFIG, PX4IO_P_CONFIG_ADC_INPUT_COUNT, adc_inputs);
 	printf("ADC inputs");
 
 	for (unsigned i = 0; i < adc_inputs; i++) {
-		printf(" %" PRIu32, io_reg_get(PX4IO_PAGE_RAW_ADC_INPUT, i));
+		uint16_t value = 0;
+		io_reg_get(PX4IO_PAGE_RAW_ADC_INPUT, i, value);
+		printf(" %" PRIu16, value);
 	}
 
 	printf("\n");
 
 	/* setup and state */
-	uint16_t features = io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_FEATURES);
+	uint16_t features;
+	io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_FEATURES, features);
 	printf("features 0x%04" PRIx16 "%s%s%s\n", features,
 	       ((features & PX4IO_P_SETUP_FEATURES_SBUS1_OUT) ? " S.BUS1_OUT" : ""),
 	       ((features & PX4IO_P_SETUP_FEATURES_SBUS2_OUT) ? " S.BUS2_OUT" : ""),
 	       ((features & PX4IO_P_SETUP_FEATURES_ADC_RSSI) ? " RSSI_ADC" : "")
 	      );
 
-	printf("sbus rate %" PRIu32 "\n", io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_SBUS_RATE));
+	uint16_t sbus_rate;
+	io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_SBUS_RATE, sbus_rate);
+	printf("sbus rate %" PRIu16 "\n", sbus_rate);
 
-	printf("debuglevel %" PRIu32 "\n", io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_SET_DEBUG));
+	uint16_t debug_level;
+	io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_SET_DEBUG, debug_level);
+	printf("debuglevel %" PRIu16 "\n", debug_level);
 
 	/* IMU heater (Pixhawk 2.1) */
-	uint16_t heater_level = io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_THERMAL);
+	uint16_t heater_level;
+	io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_THERMAL, heater_level);
 
 	if (heater_level != UINT16_MAX) {
 		if (heater_level == PX4IO_THERMAL_OFF) {
@@ -1362,7 +1397,7 @@ int PX4IO::ioctl(file *filep, int cmd, unsigned long arg)
 
 			/* check IO firmware CRC against passed value */
 			uint32_t io_crc = 0;
-			ret = io_reg_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_CRC, (uint16_t *)&io_crc, 2);
+			ret = io_regs_get(PX4IO_PAGE_SETUP, PX4IO_P_SETUP_CRC, (uint16_t *)&io_crc, 2);
 
 			if (ret != OK) {
 				return ret;

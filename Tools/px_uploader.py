@@ -813,6 +813,7 @@ class uploader:
             except Exception as e:
                 # ignore bad character encodings
                 print(f"Exception ignored: {e}")
+                time.sleep(0.5)
                 pass
 
         # Silicon errata check was added in v5
@@ -1077,6 +1078,7 @@ def main():
                     # open failed, rate-limit our attempts
                     time.sleep(0.05)
                     print(f"Exception ignored: {e}")
+                    time.sleep(0.5)
 
                     # and loop to the next port
                     continue

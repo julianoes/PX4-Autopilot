@@ -29,3 +29,7 @@ then
     icm45686 -s -b 4 -R 12 -c 5 start
 fi
 ms5611 -s -b 4 start -c 2
+
+# Currently px4io start doesn't happen in rcS because we don't ship with an IO binary.
+# Therefore, we start it manually here.
+px4io start

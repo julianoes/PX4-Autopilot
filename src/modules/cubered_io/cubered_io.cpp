@@ -63,6 +63,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 using namespace time_literals;
 
@@ -159,6 +160,11 @@ CuberedIO::~CuberedIO()
 		::close(_serial_fd);
 	}
 
+	// Clean up PWM outputs
+	if (_pwm_initialized) {
+		up_pwm_servo_deinit(_pwm_mask);
+	}
+
 	perf_free(_loop_perf);
 	perf_free(_loop_interval_perf);
 }
@@ -216,7 +222,12 @@ bool CuberedIO::init()
 		return false;
 	}
 
-	PX4_INFO("CuberedIO initialized on %s", DEVICE_NAME);
+	if (init_pwm() != PX4_OK) {
+		PX4_ERR("Failed to initialize PWM outputs");
+		return false;
+	}
+
+	PX4_INFO("CuberedIO initialized on %s with PWM outputs", DEVICE_NAME);
 	return true;
 }
 
@@ -269,6 +280,77 @@ int CuberedIO::init_serial()
 	// Flush any existing data
 	tcflush(_serial_fd, TCIOFLUSH);
 
+	return PX4_OK;
+}
+
+int CuberedIO::init_pwm()
+{
+	// Initialize PWM channels (similar to pwm_out module)
+	_pwm_mask = ((1u << DIRECT_PWM_OUTPUT_CHANNELS) - 1);
+
+	// Initialize timer rates
+	for (int timer = 0; timer < MAX_IO_TIMERS; ++timer) {
+		_timer_rates[timer] = -1;
+
+		uint32_t channels = io_timer_get_group(timer);
+
+		if (channels == 0) {
+			continue;
+		}
+
+		// Set default PWM rate (400Hz like PX4IO)
+		_timer_rates[timer] = 400;
+	}
+
+	// Initialize PWM hardware
+	printf("CuberedIO: Attempting PWM init with mask 0x%02" PRIx32 "\n", _pwm_mask);
+	int ret = up_pwm_servo_init(_pwm_mask);
+
+	if (ret < 0) {
+		printf("CuberedIO: up_pwm_servo_init failed (%i)\n", ret);
+		return PX4_ERROR;
+	}
+
+	printf("CuberedIO: up_pwm_servo_init returned mask 0x%02x\n", ret);
+	_pwm_mask = ret;
+
+	// Set the timer rates
+	for (int timer = 0; timer < MAX_IO_TIMERS; ++timer) {
+		uint32_t channels = _pwm_mask & up_pwm_servo_get_rate_group(timer);
+
+		if (channels == 0) {
+			printf("CuberedIO: Timer %d has no channels\n", timer);
+			continue;
+		}
+
+		printf("CuberedIO: Setting timer %d rate to %d Hz for channels 0x%02" PRIx32 "\n", timer, _timer_rates[timer],
+		       channels);
+		ret = up_pwm_servo_set_rate_group_update(timer, _timer_rates[timer]);
+
+		if (ret != 0) {
+			printf("CuberedIO: up_pwm_servo_set_rate_group_update failed for timer %i, rate %i (%i)\n", timer, _timer_rates[timer],
+			       ret);
+			_timer_rates[timer] = -1;
+			_pwm_mask &= ~channels;
+
+		} else {
+			printf("CuberedIO: Timer %d configured successfully\n", timer);
+		}
+	}
+
+	_pwm_initialized = true;
+
+	// Always arm PWM hardware (like PWMOut does with pwm_on = true)
+	// The armed/disarmed state will control values, not hardware state
+	up_pwm_servo_arm(true, _pwm_mask);
+
+	// Debug: Read back GPIO states to verify direction control
+	bool bidir_state = px4_arch_gpioread(GPIO_BIDIR_ENABLED);
+	bool unidir_state = px4_arch_gpioread(GPIO_UNIDIR_DISABLED);
+	printf("CuberedIO: PWM direction control - BIDIR_ENABLED=%s, UNIDIR_DISABLED=%s\n",
+	       bidir_state ? "HIGH" : "LOW", unidir_state ? "HIGH" : "LOW");
+
+	PX4_INFO("PWM initialized with mask 0x%02" PRIx32, _pwm_mask);
 	return PX4_OK;
 }
 
@@ -569,12 +651,34 @@ void CuberedIO::handle_write_request(IOPacket &packet)
 		for (uint8_t i = 0; i < count && (offset + i) < sizeof(status_page)/sizeof(status_page[0]); i++) {
 			status_page[offset + i] = packet.regs[i];
 		}
+		// Check if arming status changed
+		if (offset <= PX4IO_P_STATUS_FLAGS && (offset + count) > PX4IO_P_STATUS_FLAGS) {
+			bool armed = (status_page[PX4IO_P_STATUS_FLAGS] & PX4IO_P_STATUS_FLAGS_OUTPUTS_ARMED) != 0;
+			set_pwm_armed(armed);
+		}
 		break;
 
 	case PX4IO_PAGE_DIRECT_PWM:
-		// Update direct PWM data
-		for (uint8_t i = 0; i < count && (offset + i) < sizeof(direct_pwm_page)/sizeof(direct_pwm_page[0]); i++) {
-			direct_pwm_page[offset + i] = packet.regs[i];
+		{
+			static unsigned debug_counter = 0;
+			
+			// Update direct PWM data
+			for (uint8_t i = 0; i < count && (offset + i) < sizeof(direct_pwm_page)/sizeof(direct_pwm_page[0]); i++) {
+				direct_pwm_page[offset + i] = packet.regs[i];
+			}
+			
+			// Debug print every 400th call
+			if (++debug_counter >= 400) {
+				debug_counter = 0;
+				printf("CuberedIO PWM in (offset=%u, count=%u, %s): ", offset, count, _pwm_armed ? "ARMED" : "DISARMED");
+				for (uint8_t i = 0; i < 8 && i < sizeof(direct_pwm_page)/sizeof(direct_pwm_page[0]); i++) {
+					printf("%u ", direct_pwm_page[i]);
+				}
+				printf("\n");
+			}
+			
+			// Drive actual PWM outputs
+			update_pwm_outputs();
 		}
 		break;
 
@@ -702,6 +806,44 @@ int CuberedIO::print_status()
 	}
 
 	return 0;
+}
+
+void CuberedIO::update_pwm_outputs()
+{
+	static unsigned update_counter = 0;
+	
+	if (!_pwm_initialized) {
+		if (++update_counter % 400 == 0) {
+			printf("CuberedIO: update_pwm_outputs called but PWM not initialized\n");
+		}
+		return;
+	}
+
+	// Output PWM values to hardware
+	for (unsigned i = 0; i < DIRECT_PWM_OUTPUT_CHANNELS && i < sizeof(direct_pwm_page)/sizeof(direct_pwm_page[0]); i++) {
+		if (_pwm_mask & (1 << i)) {
+			int ret = up_pwm_servo_set(i, direct_pwm_page[i]);
+			if (ret < 0 && update_counter % 400 == 0) {
+				printf("CuberedIO: up_pwm_servo_set(%u, %u) failed: %d\n", i, direct_pwm_page[i], ret);
+			}
+		} else if (update_counter % 400 == 0) {
+			printf("CuberedIO: Channel %u not in PWM mask (0x%02" PRIx32 ")\n", i, _pwm_mask);
+		}
+	}
+	
+	if (++update_counter % 400 == 0) {
+		printf("CuberedIO: update_pwm_outputs called (%u times)\n", update_counter);
+	}
+}
+
+void CuberedIO::set_pwm_armed(bool armed)
+{
+	if (_pwm_initialized && _pwm_armed != armed) {
+		_pwm_armed = armed;
+		// Don't change hardware arm state - PWM hardware stays always enabled
+		// The flight control system sends appropriate values (disarmed/test/active)
+		printf("CuberedIO: Flight control %s (mask=0x%02" PRIx32 ")\n", armed ? "ARMED" : "DISARMED", _pwm_mask);
+	}
 }
 
 extern "C" __EXPORT int cubered_io_main(int argc, char *argv[])

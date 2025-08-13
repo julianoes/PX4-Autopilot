@@ -367,6 +367,8 @@ PX4IO::~PX4IO()
 bool PX4IO::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS],
 			  unsigned num_outputs, unsigned num_control_groups_updated)
 {
+	static unsigned debug_counter = 0;
+
 	for (size_t i = 0; i < num_outputs; i++) {
 		if (!_mixing_output.isFunctionSet(i)) {
 			// do not run any signal on disabled channels
@@ -377,6 +379,18 @@ bool PX4IO::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS],
 	if (!_test_fmu_fail) {
 		/* output to the servos */
 		io_regs_set(PX4IO_PAGE_DIRECT_PWM, 0, outputs, num_outputs);
+
+		// Debug print every 400th call
+		if (++debug_counter >= 400) {
+			debug_counter = 0;
+			printf("PX4IO PWM out (%u, %s): ", num_outputs, _mixing_output.armed().armed ? "ARMED" : "DISARMED");
+
+			for (unsigned i = 0; i < num_outputs && i < 8; i++) {
+				printf("%u ", outputs[i]);
+			}
+
+			printf("\n");
+		}
 	}
 
 	return true;

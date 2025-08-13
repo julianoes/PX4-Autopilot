@@ -51,8 +51,12 @@
 
 #include <px4_platform_common/posix.h>
 
+#include <board_config.h>
 #include <drivers/drv_hrt.h>
+#include <drivers/drv_pwm_output.h>
 #include <lib/perf/perf_counter.h>
+#include <px4_arch/io_timer.h>
+#include <px4_platform/gpio.h>
 
 // Include PX4IO protocol definitions
 #include "../px4iofirmware/protocol.h"
@@ -99,6 +103,12 @@ private:
 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": loop")};
 	perf_counter_t _loop_interval_perf{perf_alloc(PC_INTERVAL, MODULE_NAME": loop interval")};
 
+	// PWM output state
+	bool _pwm_initialized{false};
+	bool _pwm_armed{false};
+	uint32_t _pwm_mask{0};
+	int _timer_rates[MAX_IO_TIMERS] {};
+
 	void poll_and_process();
 	void process_received_data(IOPacket &packet);
 	void send_response(IOPacket &packet);
@@ -113,6 +123,9 @@ private:
 	static int run_trampoline(int argc, char *argv[]);
 
 	int init_serial();
+	int init_pwm();
+	void update_pwm_outputs();
+	void set_pwm_armed(bool armed);
 
 	bool should_exit() const { return _task_should_exit.load(); }
 };

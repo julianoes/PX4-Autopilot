@@ -345,9 +345,9 @@ int CuberedIO::init_pwm()
 	up_pwm_servo_arm(true, _pwm_mask);
 
 	// Debug: Read back GPIO states to verify direction control
-	bool bidir_state = px4_arch_gpioread(GPIO_BIDIR_ENABLED);
-	bool unidir_state = px4_arch_gpioread(GPIO_UNIDIR_DISABLED);
-	printf("CuberedIO: PWM direction control - BIDIR_ENABLED=%s, UNIDIR_DISABLED=%s\n",
+	bool bidir_state = px4_arch_gpioread(GPIO_BIDIR_DISABLED);
+	bool unidir_state = px4_arch_gpioread(GPIO_UNIDIR_ENABLED);
+	printf("CuberedIO: PWM direction control - BIDIR_DISABLED=%s, UNIDIR_ENABLED=%s\n",
 	       bidir_state ? "HIGH" : "LOW", unidir_state ? "HIGH" : "LOW");
 
 	PX4_INFO("PWM initialized with mask 0x%02" PRIx32, _pwm_mask);

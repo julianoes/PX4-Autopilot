@@ -33,7 +33,19 @@
 
 #include <px4_arch/io_timer_hw_description.h>
 
-// For now, just enable the 8 basic output channels
+// CubeRed Secondary IO Board - 8 PWM output channels
+//
+// Hardware design: Each PWM output has dual timer pins routed through level shifters
+// with direction control via PA7 (unidirectional enable) and PB0 (bidirectional enable).
+//
+// Active timers:
+// - Timer1 CH1-4: PWM outputs 1-4 (PA8, PA9, PA10, PA11)
+// - Timer2 CH1-4: PWM outputs 5-8 (PA5, PA1, PB10, PB11)
+//
+// Inactive timers (commented below):
+// - Timer3/4/5: Alternative timer pins for PWM monitoring in bidirectional mode
+//   These are not currently used, but kept for potential future bidirectional support.
+
 
 constexpr io_timers_t io_timers[MAX_IO_TIMERS] = {
 	initIOTimer(Timer::Timer1, DMA{DMA::Index2}),
@@ -52,8 +64,7 @@ constexpr timer_io_channels_t timer_io_channels[MAX_TIMER_IO_CHANNELS] = {
 	initIOTimerChannel(io_timers, {Timer::Timer2, Timer::Channel2}, {GPIO::PortA, GPIO::Pin1}),
 	initIOTimerChannel(io_timers, {Timer::Timer2, Timer::Channel3}, {GPIO::PortB, GPIO::Pin10}),
 	initIOTimerChannel(io_timers, {Timer::Timer2, Timer::Channel4}, {GPIO::PortB, GPIO::Pin11}),
-	//initIOTimerChannel(io_timers, {Timer::Timer3, Timer::Channel2}, {GPIO::PortA, GPIO::Pin7}),
-	//initIOTimerChannel(io_timers, {Timer::Timer3, Timer::Channel3}, {GPIO::PortB, GPIO::Pin0}),
+	// Alternative timer channels for potential bidirectional PWM monitoring:
 	//initIOTimerChannel(io_timers, {Timer::Timer3, Timer::Channel4}, {GPIO::PortC, GPIO::Pin9}),
 	//initIOTimerChannel(io_timers, {Timer::Timer4, Timer::Channel1}, {GPIO::PortD, GPIO::Pin12}),
 	//initIOTimerChannel(io_timers, {Timer::Timer4, Timer::Channel2}, {GPIO::PortB, GPIO::Pin7}),

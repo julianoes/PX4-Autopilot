@@ -291,7 +291,11 @@ int LogWriterFile::thread_start()
 	param.sched_priority = SCHED_PRIORITY_DEFAULT - 40;
 	(void)pthread_attr_setschedparam(&thr_attr, &param);
 
+#ifdef CONFIG_MTD_W25N
+	pthread_attr_setstacksize(&thr_attr, PX4_STACK_ADJUSTED(1800));  /* W25N + littlefs needs more stack */
+#else
 	pthread_attr_setstacksize(&thr_attr, PX4_STACK_ADJUSTED(1170));
+#endif
 
 	int ret = pthread_create(&_thread, &thr_attr, &LogWriterFile::run_helper, this);
 	pthread_attr_destroy(&thr_attr);

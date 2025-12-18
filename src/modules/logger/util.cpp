@@ -232,7 +232,10 @@ int check_free_space(const char *log_root_dir, int32_t max_log_dirs_to_keep, orb
 	} while (true);
 
 
-	/* use a threshold of 50 MiB: if below, do not start logging */
+#ifndef CONFIG_MTD_W25N
+	/* use a threshold of 50 MiB: if below, do not start logging.
+	 * Skip for W25N flash: cleanup_for_small_flash() handles this when starting to log.
+	 */
 	if (statfs_buf.f_bavail < (px4_statfs_buf_f_bavail_t)(50 * 1024 * 1024 / statfs_buf.f_bsize)) {
 		mavlink_log_critical(&mavlink_log_pub,
 				     "[logger] Not logging; SD almost full: %u MiB\t",
@@ -245,9 +248,148 @@ int check_free_space(const char *log_root_dir, int32_t max_log_dirs_to_keep, orb
 				       "Not logging, storage is almost full: {1} MiB", (uint32_t)(statfs_buf.f_bavail * statfs_buf.f_bsize / 1024U / 1024U));
 		return 1;
 	}
+#endif
 
 	return PX4_OK;
 }
+
+#ifdef CONFIG_MTD_W25N
+int cleanup_for_small_flash(const char *log_root_dir, int32_t max_log_dirs_to_keep, orb_advert_t &mavlink_log_pub)
+{
+	struct statfs statfs_buf;
+
+	if (statfs(log_root_dir, &statfs_buf) != 0) {
+		return PX4_ERROR;
+	}
+
+	uint64_t total_bytes = (uint64_t)statfs_buf.f_blocks * statfs_buf.f_bsize;
+	uint64_t avail_bytes = (uint64_t)statfs_buf.f_bavail * statfs_buf.f_bsize;
+
+	// Only apply to small flash (<500 MiB)
+	if (total_bytes >= 500ULL * 1024ULL * 1024ULL) {
+		return PX4_OK;
+	}
+
+	// If >=100 MiB available, no cleanup needed
+	if (avail_bytes >= 100ULL * 1024ULL * 1024ULL) {
+		return PX4_OK;
+	}
+
+	PX4_INFO("Small flash with %u MiB free, cleaning up old logs", (unsigned)(avail_bytes / 1024U / 1024U));
+
+	// Cleanup oldest .ulg files one by one until we have 100 MiB free
+	while (avail_bytes < 100ULL * 1024ULL * 1024ULL) {
+		char oldest_file[LOG_DIR_LEN] = "";
+		char oldest_dir_name[64] = "";
+
+		// Find oldest log directory first
+		DIR *dp = opendir(log_root_dir);
+
+		if (dp == nullptr) {
+			break;
+		}
+
+		struct dirent *result = nullptr;
+
+		int year_min = 10000, month_min = 99, day_min = 99, sess_idx_min = 99999999;
+
+		bool found_sess = false, found_date = false;
+
+		while ((result = readdir(dp))) {
+			int year, month, day, sess_idx;
+
+			if (sscanf(result->d_name, "sess%d", &sess_idx) == 1) {
+				if (sess_idx < sess_idx_min) {
+					sess_idx_min = sess_idx;
+					found_sess = true;
+				}
+
+			} else if (sscanf(result->d_name, "%d-%d-%d", &year, &month, &day) == 3) {
+				if (year < year_min || (year == year_min && month < month_min) ||
+				    (year == year_min && month == month_min && day < day_min)) {
+					year_min = year;
+					month_min = month;
+					day_min = day;
+					found_date = true;
+				}
+			}
+		}
+
+		closedir(dp);
+
+		if (!found_sess && !found_date) {
+			break; // no log directories found
+		}
+
+		// Build path to oldest directory
+		char oldest_dir[LOG_DIR_LEN];
+
+		if (found_sess && (!found_date || sess_idx_min < year_min * 10000 + month_min * 100 + day_min)) {
+			snprintf(oldest_dir, sizeof(oldest_dir), "%s/sess%03u", log_root_dir, sess_idx_min);
+			snprintf(oldest_dir_name, sizeof(oldest_dir_name), "sess%03u", sess_idx_min);
+
+		} else {
+			snprintf(oldest_dir, sizeof(oldest_dir), "%s/%04u-%02u-%02u", log_root_dir, year_min, month_min, day_min);
+			snprintf(oldest_dir_name, sizeof(oldest_dir_name), "%04u-%02u-%02u", year_min, month_min, day_min);
+		}
+
+		// Find oldest .ulg file in that directory
+		dp = opendir(oldest_dir);
+
+		if (dp == nullptr) {
+			break;
+		}
+
+		char oldest_ulg[64] = "";
+
+		while ((result = readdir(dp))) {
+			size_t len = strlen(result->d_name);
+
+			if (len > 4 && strcmp(result->d_name + len - 4, ".ulg") == 0) {
+				if (oldest_ulg[0] == '\0' || strcmp(result->d_name, oldest_ulg) < 0) {
+					strncpy(oldest_ulg, result->d_name, sizeof(oldest_ulg) - 1);
+				}
+			}
+		}
+
+		closedir(dp);
+
+		if (oldest_ulg[0] == '\0') {
+			// No .ulg files, try to remove empty directory
+			if (rmdir(oldest_dir) == 0) {
+				PX4_INFO("removed empty directory %s", oldest_dir_name);
+			}
+
+			continue;
+		}
+
+		// Build full path and delete the file
+		snprintf(oldest_file, sizeof(oldest_file), "%s/%s", oldest_dir, oldest_ulg);
+		PX4_INFO("removing old log %s/%s", oldest_dir_name, oldest_ulg);
+
+		if (unlink(oldest_file) != 0) {
+			PX4_ERR("Failed to delete %s", oldest_file);
+			break;
+		}
+
+		// Re-check available space
+		if (statfs(log_root_dir, &statfs_buf) != 0) {
+			break;
+		}
+
+		avail_bytes = (uint64_t)statfs_buf.f_bavail * statfs_buf.f_bsize;
+	}
+
+	// Final check: if still not enough space, refuse to log
+	if (avail_bytes < 10ULL * 1024ULL * 1024ULL) {  // Less than 10 MiB is critical
+		mavlink_log_critical(&mavlink_log_pub, "[logger] Flash full: %u MiB free\t",
+				     (unsigned)(avail_bytes / 1024U / 1024U));
+		return 1;
+	}
+
+	return PX4_OK;
+}
+#endif // CONFIG_MTD_W25N
 
 int remove_directory(const char *dir)
 {

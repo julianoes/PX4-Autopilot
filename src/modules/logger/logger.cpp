@@ -1400,6 +1400,16 @@ void Logger::start_log_file(LogType type)
 	}
 
 	if (type == LogType::Full) {
+#ifdef CONFIG_MTD_W25N
+
+		// For small flash (<500 MB): cleanup old logs if <100 MB available
+		if (util::cleanup_for_small_flash(LOG_ROOT[(int)LogType::Full], _param_sdlog_dirs_max.get(),
+						  _mavlink_log_pub) == 1) {
+			return;  // Not enough space even after cleanup
+		}
+
+#endif
+
 		// initialize cpu load as early as possible to get more data
 		initialize_load_output(PrintLoadReason::Preflight);
 	}

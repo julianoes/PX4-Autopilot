@@ -233,6 +233,7 @@ int check_free_space(const char *log_root_dir, int32_t max_log_dirs_to_keep, orb
 
 
 #ifndef CONFIG_MTD_W25N
+
 	/* use a threshold of 50 MiB: if below, do not start logging.
 	 * Skip for W25N flash: cleanup_for_small_flash() handles this when starting to log.
 	 */
@@ -248,6 +249,7 @@ int check_free_space(const char *log_root_dir, int32_t max_log_dirs_to_keep, orb
 				       "Not logging, storage is almost full: {1} MiB", (uint32_t)(statfs_buf.f_bavail * statfs_buf.f_bsize / 1024U / 1024U));
 		return 1;
 	}
+
 #endif
 
 	return PX4_OK;
@@ -270,15 +272,27 @@ int cleanup_for_small_flash(const char *log_root_dir, int32_t max_log_dirs_to_ke
 		return PX4_OK;
 	}
 
-	// If >=100 MiB available, no cleanup needed
-	if (avail_bytes >= 100ULL * 1024ULL * 1024ULL) {
+	// Use 30% for log files, leaving 10% buffer
+	// Trigger and cleanup until 30% free (~38 MB for 128 MB flash)
+	uint64_t cleanup_threshold = (total_bytes * 30) / 100;
+
+	// If enough space available, no cleanup needed
+	if (avail_bytes >= cleanup_threshold) {
 		return PX4_OK;
 	}
 
-	PX4_INFO("Small flash with %u MiB free, cleaning up old logs", (unsigned)(avail_bytes / 1024U / 1024U));
+	PX4_INFO("Small flash cleanup: %u MiB free, need %u MiB",
+		 (unsigned)(avail_bytes / 1024U / 1024U), (unsigned)(cleanup_threshold / 1024U / 1024U));
 
-	// Cleanup oldest .ulg files one by one until we have 100 MiB free
-	while (avail_bytes < 100ULL * 1024ULL * 1024ULL) {
+	// Determine if we currently have valid time (using date dirs) or not (using sess dirs)
+	// Delete from the "other" scheme first to avoid deleting current log
+	uint64_t utc_time_usec;
+	bool have_time = get_log_time(utc_time_usec, 0, false);
+
+	// Cleanup oldest .ulg files one by one until we have enough space
+	int empty_dir_failures = 0;
+
+	while (avail_bytes < cleanup_threshold) {
 		char oldest_file[LOG_DIR_LEN] = "";
 		char oldest_dir_name[64] = "";
 
@@ -291,7 +305,8 @@ int cleanup_for_small_flash(const char *log_root_dir, int32_t max_log_dirs_to_ke
 
 		struct dirent *result = nullptr;
 
-		int year_min = 10000, month_min = 99, day_min = 99, sess_idx_min = 99999999;
+		int year_min = 10000, month_min = 99, day_min = 99;
+		int sess_idx_min = 99999999;
 
 		bool found_sess = false, found_date = false;
 
@@ -301,8 +316,9 @@ int cleanup_for_small_flash(const char *log_root_dir, int32_t max_log_dirs_to_ke
 			if (sscanf(result->d_name, "sess%d", &sess_idx) == 1) {
 				if (sess_idx < sess_idx_min) {
 					sess_idx_min = sess_idx;
-					found_sess = true;
 				}
+
+				found_sess = true;
 
 			} else if (sscanf(result->d_name, "%d-%d-%d", &year, &month, &day) == 3) {
 				if (year < year_min || (year == year_min && month < month_min) ||
@@ -318,25 +334,47 @@ int cleanup_for_small_flash(const char *log_root_dir, int32_t max_log_dirs_to_ke
 		closedir(dp);
 
 		if (!found_sess && !found_date) {
+			PX4_WARN("No log directories found to clean up");
 			break; // no log directories found
 		}
 
-		// Build path to oldest directory
+		// Delete from the "other" naming scheme first (it's old/stale)
+		// - Have time (using date dirs): delete sess dirs first
+		// - No time (using sess dirs): delete date dirs first, then sess dirs
 		char oldest_dir[LOG_DIR_LEN];
 
-		if (found_sess && (!found_date || sess_idx_min < year_min * 10000 + month_min * 100 + day_min)) {
+		if (have_time && found_sess) {
+			// Using date dirs, delete old sess dirs first
 			snprintf(oldest_dir, sizeof(oldest_dir), "%s/sess%03u", log_root_dir, sess_idx_min);
 			snprintf(oldest_dir_name, sizeof(oldest_dir_name), "sess%03u", sess_idx_min);
 
-		} else {
+		} else if (!have_time && found_date) {
+			// Using sess dirs, delete old date dirs first
 			snprintf(oldest_dir, sizeof(oldest_dir), "%s/%04u-%02u-%02u", log_root_dir, year_min, month_min, day_min);
 			snprintf(oldest_dir_name, sizeof(oldest_dir_name), "%04u-%02u-%02u", year_min, month_min, day_min);
+
+		} else if (found_sess) {
+			// Delete from oldest sess dir (including current - old files are ok to delete)
+			snprintf(oldest_dir, sizeof(oldest_dir), "%s/sess%03u", log_root_dir, sess_idx_min);
+			snprintf(oldest_dir_name, sizeof(oldest_dir_name), "sess%03u", sess_idx_min);
+
+		} else if (found_date) {
+			// Delete from oldest date dir
+			snprintf(oldest_dir, sizeof(oldest_dir), "%s/%04u-%02u-%02u", log_root_dir, year_min, month_min, day_min);
+			snprintf(oldest_dir_name, sizeof(oldest_dir_name), "%04u-%02u-%02u", year_min, month_min, day_min);
+
+		} else {
+			// Nothing left to delete
+			break;
 		}
+
+		PX4_DEBUG("Checking directory %s for old logs", oldest_dir_name);
 
 		// Find oldest .ulg file in that directory
 		dp = opendir(oldest_dir);
 
 		if (dp == nullptr) {
+			PX4_WARN("Cannot open directory %s", oldest_dir_name);
 			break;
 		}
 
@@ -355,9 +393,23 @@ int cleanup_for_small_flash(const char *log_root_dir, int32_t max_log_dirs_to_ke
 		closedir(dp);
 
 		if (oldest_ulg[0] == '\0') {
-			// No .ulg files, try to remove empty directory
-			if (rmdir(oldest_dir) == 0) {
-				PX4_INFO("removed empty directory %s", oldest_dir_name);
+			// No .ulg files, try to remove directory
+			if (remove_directory(oldest_dir) == 0) {
+				PX4_INFO("removed directory %s (no .ulg files)", oldest_dir_name);
+				empty_dir_failures = 0;
+
+			} else {
+				// Removal failed (littlefs may report "not empty" for empty dirs)
+				// Toggle have_time to try the other naming scheme next iteration
+				empty_dir_failures++;
+
+				if (empty_dir_failures >= 3) {
+					PX4_WARN("Cannot remove empty directories, giving up");
+					break;
+				}
+
+				have_time = !have_time;
+				PX4_DEBUG("Cannot remove %s, trying other scheme", oldest_dir_name);
 			}
 
 			continue;

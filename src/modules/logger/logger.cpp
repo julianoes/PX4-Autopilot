@@ -67,6 +67,10 @@
 #include <version/version.h>
 #include <component_information/checksums.h>
 
+#ifdef CONFIG_MTD_W25N
+#include <sys/statfs.h>
+#endif
+
 //#define DBGPRINT //write status output every few seconds
 
 static_assert(uORB::orb_untokenized_fields_max_length < sizeof(ulog_message_format_s::format) -
@@ -869,6 +873,18 @@ void Logger::run()
 
 			debug_print_buffer(total_bytes, timer_start);
 
+#ifdef CONFIG_MTD_W25N
+
+			// For small flash: rotate log file when it exceeds max size
+			if (_max_log_file_size > 0 &&
+			    _writer.get_total_written_file(LogType::Full) > _max_log_file_size) {
+				PX4_INFO("Log file size limit reached, rotating");
+				stop_log_file(LogType::Full);
+				start_log_file(LogType::Full);
+			}
+
+#endif
+
 			was_started = true;
 
 		} else { // not logging
@@ -1370,6 +1386,11 @@ int Logger::get_log_file_name(LogType type, char *file_name, size_t file_name_si
 			return -1;
 		}
 
+		/* format log file path: e.g. /fs/microsd/log/sess001/log001.ulg */
+		snprintf(log_file_name, sizeof(LogFileName::log_file_name), "log%03" PRIu16 "%s.ulg%s", file_number, replay_suffix,
+			 crypto_suffix);
+		snprintf(file_name + n, file_name_size - n, "/%s", log_file_name);
+
 		if (notify) {
 			mavlink_log_info(&_mavlink_log_pub, "[logger] %s\t", file_name);
 			uint16_t sess = 0;
@@ -1402,10 +1423,22 @@ void Logger::start_log_file(LogType type)
 	if (type == LogType::Full) {
 #ifdef CONFIG_MTD_W25N
 
-		// For small flash (<500 MB): cleanup old logs if <100 MB available
+		// For small flash (<500 MB): cleanup old logs if needed
 		if (util::cleanup_for_small_flash(LOG_ROOT[(int)LogType::Full], _param_sdlog_dirs_max.get(),
 						  _mavlink_log_pub) == 1) {
 			return;  // Not enough space even after cleanup
+		}
+
+		// For small flash: limit log file size to 30% of total (leaving 10% buffer)
+		struct statfs statfs_buf;
+
+		if (statfs(LOG_ROOT[(int)LogType::Full], &statfs_buf) == 0) {
+			uint64_t total_bytes = (uint64_t)statfs_buf.f_blocks * statfs_buf.f_bsize;
+
+			if (total_bytes < 500ULL * 1024ULL * 1024ULL) {
+				_max_log_file_size = (total_bytes * 30) / 100;
+				PX4_INFO("Small flash: max log file size %zu MB", _max_log_file_size / 1024U / 1024U);
+			}
 		}
 
 #endif

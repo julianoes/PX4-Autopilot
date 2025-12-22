@@ -77,8 +77,9 @@ int check_free_space(const char *log_root_dir, int32_t max_log_dirs_to_keep, orb
 
 #ifdef CONFIG_MTD_W25N
 /**
- * For small flash (<500 MiB): cleanup old logs when starting to log if <100 MiB available.
- * This is called when actually starting to log (logger on), not at boot.
+ * For small flash (<500 MiB): cleanup old logs when starting to log if less than 1/3 of total available.
+ * This ensures enough space for one new log file while keeping older logs.
+ * Called when actually starting to log (logger on), not at boot.
  * @param log_root_dir log root directory
  * @param max_log_dirs_to_keep maximum log directories to keep (set to 0 for unlimited)
  * @param mavlink_log_pub mavlink log publisher

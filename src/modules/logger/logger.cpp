@@ -1365,20 +1365,27 @@ int Logger::get_log_file_name(LogType type, char *file_name, size_t file_name_si
 			return -1;
 		}
 
+		// Find the highest existing log file number and use next
 		uint16_t file_number = 100; // start with file log100
+		uint16_t max_existing = 99;
 
-		/* look for the next file that does not exist */
-		while (file_number <= MAX_NO_LOGFILE) {
-			/* format log file path: e.g. /fs/microsd/log/sess001/log001.ulg */
-			snprintf(log_file_name, sizeof(LogFileName::log_file_name), "log%03" PRIu16 "%s.ulg%s", file_number, replay_suffix,
-				 crypto_suffix);
-			snprintf(file_name + n, file_name_size - n, "/%s", log_file_name);
+		DIR *dp = opendir(file_name);
 
-			if (!util::file_exist(file_name)) {
-				break;
+		if (dp != nullptr) {
+			struct dirent *entry;
+
+			while ((entry = readdir(dp)) != nullptr) {
+				uint16_t num;
+
+				if (sscanf(entry->d_name, "log%hu", &num) == 1) {
+					if (num > max_existing) {
+						max_existing = num;
+					}
+				}
 			}
 
-			file_number++;
+			closedir(dp);
+			file_number = max_existing + 1;
 		}
 
 		if (file_number > MAX_NO_LOGFILE) {

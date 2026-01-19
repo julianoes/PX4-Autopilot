@@ -80,8 +80,14 @@ endif()
 
 string(REPLACE ";" "," serial_ports "${serial_ports}")
 
+# Use the new uploader (px4_uploader2.py) with fallback to old one
+set(PX4_UPLOADER_SCRIPT "${PX4_SOURCE_DIR}/Tools/px4_uploader2.py")
+if(NOT EXISTS "${PX4_UPLOADER_SCRIPT}")
+	set(PX4_UPLOADER_SCRIPT "${PX4_SOURCE_DIR}/Tools/px_uploader.py")
+endif()
+
 add_custom_target(upload
-	COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/px_uploader.py --port ${serial_ports} ${fw_package}
+	COMMAND ${PYTHON_EXECUTABLE} ${PX4_UPLOADER_SCRIPT} --port ${serial_ports} ${fw_package}
 	DEPENDS ${fw_package}
 	COMMENT "uploading px4"
 	VERBATIM
@@ -90,9 +96,19 @@ add_custom_target(upload
 	)
 
 add_custom_target(force-upload
-	COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/px_uploader.py --force --port ${serial_ports} ${fw_package}
+	COMMAND ${PYTHON_EXECUTABLE} ${PX4_UPLOADER_SCRIPT} --force --port ${serial_ports} ${fw_package}
 	DEPENDS ${fw_package}
 	COMMENT "uploading px4 with --force"
+	VERBATIM
+	USES_TERMINAL
+	WORKING_DIRECTORY ${PX4_BINARY_DIR}
+	)
+
+# Verbose upload target for debugging
+add_custom_target(upload-verbose
+	COMMAND ${PYTHON_EXECUTABLE} ${PX4_UPLOADER_SCRIPT} --verbose --port ${serial_ports} ${fw_package}
+	DEPENDS ${fw_package}
+	COMMENT "uploading px4 with verbose output"
 	VERBATIM
 	USES_TERMINAL
 	WORKING_DIRECTORY ${PX4_BINARY_DIR}

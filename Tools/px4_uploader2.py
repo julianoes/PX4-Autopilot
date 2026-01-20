@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 ############################################################################
 #
-#   Copyright (c) 2012-2024 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2012-2026 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -51,7 +51,6 @@ Key improvements over px_uploader.py:
 
 import argparse
 import base64
-import binascii
 import glob
 import json
 import logging
@@ -122,8 +121,13 @@ def setup_logging(verbose: bool = False, debug: bool = False) -> None:
 class UploadError(Exception):
     """Base exception for all upload-related errors."""
 
-    def __init__(self, message: str, port: Optional[str] = None,
-                 operation: Optional[str] = None, details: Optional[str] = None):
+    def __init__(
+        self,
+        message: str,
+        port: Optional[str] = None,
+        operation: Optional[str] = None,
+        details: Optional[str] = None,
+    ):
         self.port = port
         self.operation = operation
         self.details = details
@@ -141,31 +145,37 @@ class UploadError(Exception):
 
 class ProtocolError(UploadError):
     """Error in bootloader protocol communication."""
+
     pass
 
 
 class ConnectionError(UploadError):
     """Error establishing or maintaining serial connection."""
+
     pass
 
 
 class FirmwareError(UploadError):
     """Error loading or validating firmware file."""
+
     pass
 
 
 class BoardMismatchError(UploadError):
     """Firmware not suitable for the connected board."""
+
     pass
 
 
 class TimeoutError(UploadError):
     """Operation timed out."""
+
     pass
 
 
 class SiliconErrataError(UploadError):
     """Board has silicon errata that prevents safe operation."""
+
     pass
 
 
@@ -176,50 +186,56 @@ class SiliconErrataError(UploadError):
 
 class BootloaderCommand(IntEnum):
     """Bootloader protocol commands."""
-    NOP = 0x00             # Guaranteed to be discarded by the bootloader
+
+    NOP = 0x00  # Guaranteed to be discarded by the bootloader
     GET_SYNC = 0x21
     GET_DEVICE = 0x22
     CHIP_ERASE = 0x23
-    CHIP_VERIFY = 0x24     # rev2 only
+    CHIP_VERIFY = 0x24  # rev2 only
     PROG_MULTI = 0x27
-    READ_MULTI = 0x28      # rev2 only
-    GET_CRC = 0x29         # rev3+
-    GET_OTP = 0x2A         # rev4+, get a word from OTP area
-    GET_SN = 0x2B          # rev4+, get a word from SN area
-    GET_CHIP = 0x2C        # rev5+, get chip version
+    READ_MULTI = 0x28  # rev2 only
+    GET_CRC = 0x29  # rev3+
+    GET_OTP = 0x2A  # rev4+, get a word from OTP area
+    GET_SN = 0x2B  # rev4+, get a word from SN area
+    GET_CHIP = 0x2C  # rev5+, get chip version
     SET_BOOT_DELAY = 0x2D  # rev5+, set boot delay
-    GET_CHIP_DES = 0x2E    # rev5+, get chip description in ASCII
-    GET_VERSION = 0x2F     # rev5+, get bootloader version in ASCII
+    GET_CHIP_DES = 0x2E  # rev5+, get chip description in ASCII
+    GET_VERSION = 0x2F  # rev5+, get bootloader version in ASCII
     REBOOT = 0x30
-    CHIP_FULL_ERASE = 0x40 # Full erase of flash, rev6+
+    CHIP_FULL_ERASE = 0x40  # Full erase of flash, rev6+
 
 
 class BootloaderResponse(IntEnum):
     """Bootloader response codes."""
+
     INSYNC = 0x12
     EOC = 0x20
     OK = 0x10
     FAILED = 0x11
-    INVALID = 0x13         # rev3+
-    BAD_SILICON_REV = 0x14 # rev5+
+    INVALID = 0x13  # rev3+
+    BAD_SILICON_REV = 0x14  # rev5+
 
 
 class DeviceInfo(IntEnum):
     """Device information parameter codes."""
-    BL_REV = 0x01          # Bootloader protocol revision
-    BOARD_ID = 0x02        # Board type
-    BOARD_REV = 0x03       # Board revision
-    FLASH_SIZE = 0x04      # Max firmware size in bytes
+
+    BL_REV = 0x01  # Bootloader protocol revision
+    BOARD_ID = 0x02  # Board type
+    BOARD_REV = 0x03  # Board revision
+    FLASH_SIZE = 0x04  # Max firmware size in bytes
 
 
 @dataclass
 class ProtocolConfig:
     """Protocol configuration constants."""
-    BL_REV_MIN: int = 2              # Minimum supported bootloader protocol
-    BL_REV_MAX: int = 6              # Maximum supported bootloader protocol
-    PROG_MULTI_MAX: int = 252        # Max bytes per PROG_MULTI (protocol max 255, must be multiple of 4)
-    READ_MULTI_MAX: int = 252        # Max bytes per READ_MULTI
-    MAX_DES_LENGTH: int = 20         # Max chip description length
+
+    BL_REV_MIN: int = 2  # Minimum supported bootloader protocol
+    BL_REV_MAX: int = 6  # Maximum supported bootloader protocol
+    PROG_MULTI_MAX: int = (
+        252  # Max bytes per PROG_MULTI (protocol max 255, must be multiple of 4)
+    )
+    READ_MULTI_MAX: int = 252  # Max bytes per READ_MULTI
+    MAX_DES_LENGTH: int = 20  # Max chip description length
 
 
 # =============================================================================
@@ -268,6 +284,7 @@ class Firmware:
         image_maxsize: Maximum image size the firmware was built for
         description: Full firmware metadata dictionary
     """
+
     path: Path
     board_id: int = field(init=False)
     board_revision: int = field(init=False)
@@ -294,14 +311,18 @@ class Firmware:
         except json.JSONDecodeError as e:
             raise FirmwareError(f"Invalid firmware JSON: {e}", details=str(self.path))
         except IOError as e:
-            raise FirmwareError(f"Cannot read firmware file: {e}", details=str(self.path))
+            raise FirmwareError(
+                f"Cannot read firmware file: {e}", details=str(self.path)
+            )
 
         # Extract required fields
         required_fields = ["image", "board_id", "image_size", "image_maxsize"]
         for field_name in required_fields:
             if field_name not in self.description:
-                raise FirmwareError(f"Firmware missing required field: {field_name}",
-                                   details=str(self.path))
+                raise FirmwareError(
+                    f"Firmware missing required field: {field_name}",
+                    details=str(self.path),
+                )
 
         self.board_id = self.description["board_id"]
         self.board_revision = self.description.get("board_revision", 0)
@@ -313,8 +334,9 @@ class Firmware:
             compressed = base64.b64decode(self.description["image"])
             image_data = bytearray(zlib.decompress(compressed))
         except (base64.binascii.Error, zlib.error) as e:
-            raise FirmwareError(f"Cannot decompress firmware image: {e}",
-                               details=str(self.path))
+            raise FirmwareError(
+                f"Cannot decompress firmware image: {e}", details=str(self.path)
+            )
 
         # Pad to 4-byte alignment
         while len(image_data) % 4 != 0:
@@ -322,8 +344,10 @@ class Firmware:
 
         self.image = bytes(image_data)
 
-        logger.info(f"Loaded firmware: board_id={self.board_id}, "
-                   f"size={self.image_size} bytes ({self.usage_percent:.1f}%)")
+        logger.info(
+            f"Loaded firmware: board_id={self.board_id}, "
+            f"size={self.image_size} bytes ({self.usage_percent:.1f}%)"
+        )
 
     @property
     def usage_percent(self) -> float:
@@ -362,8 +386,13 @@ class SerialTransport:
     timeouts.
     """
 
-    def __init__(self, port: str, baudrate: int = 115200,
-                 timeout: float = 0.5, write_timeout: float = 2.0):
+    def __init__(
+        self,
+        port: str,
+        baudrate: int = 115200,
+        timeout: float = 0.5,
+        write_timeout: float = 2.0,
+    ):
         """Initialize serial transport.
 
         Args:
@@ -398,11 +427,12 @@ class SerialTransport:
                 self.port_name,
                 self.baudrate,
                 timeout=self.timeout,
-                write_timeout=self.write_timeout
+                write_timeout=self.write_timeout,
             )
         except serial.SerialException as e:
-            raise ConnectionError(f"Cannot open serial port: {e}",
-                                 port=self.port_name, operation="open")
+            raise ConnectionError(
+                f"Cannot open serial port: {e}", port=self.port_name, operation="open"
+            )
 
     def close(self) -> None:
         """Close the serial port."""
@@ -429,15 +459,18 @@ class SerialTransport:
             ConnectionError: If send fails
         """
         if not self.is_open:
-            raise ConnectionError("Port not open", port=self.port_name, operation="send")
+            raise ConnectionError(
+                "Port not open", port=self.port_name, operation="send"
+            )
 
         logger.debug(f"TX: {data.hex()}")
 
         try:
             self._port.write(data)
         except serial.SerialException as e:
-            raise ConnectionError(f"Write failed: {e}",
-                                 port=self.port_name, operation="send")
+            raise ConnectionError(
+                f"Write failed: {e}", port=self.port_name, operation="send"
+            )
 
     def recv(self, count: int = 1, timeout: Optional[float] = None) -> bytes:
         """Receive data from serial port.
@@ -454,7 +487,9 @@ class SerialTransport:
             ConnectionError: If read fails
         """
         if not self.is_open:
-            raise ConnectionError("Port not open", port=self.port_name, operation="recv")
+            raise ConnectionError(
+                "Port not open", port=self.port_name, operation="recv"
+            )
 
         old_timeout = self._port.timeout
         if timeout is not None:
@@ -463,15 +498,19 @@ class SerialTransport:
         try:
             data = self._port.read(count)
         except serial.SerialException as e:
-            raise ConnectionError(f"Read failed: {e}",
-                                 port=self.port_name, operation="recv")
+            raise ConnectionError(
+                f"Read failed: {e}", port=self.port_name, operation="recv"
+            )
         finally:
             if timeout is not None:
                 self._port.timeout = old_timeout
 
         if len(data) < count:
-            raise TimeoutError(f"Timeout waiting for {count} bytes, got {len(data)}",
-                              port=self.port_name, operation="recv")
+            raise TimeoutError(
+                f"Timeout waiting for {count} bytes, got {len(data)}",
+                port=self.port_name,
+                operation="recv",
+            )
 
         logger.debug(f"RX: {data.hex()}")
         return data
@@ -493,14 +532,15 @@ class SerialTransport:
         Args:
             baudrate: New baud rate
         """
+        logger.debug(f"Changing baudrate to {baudrate}")
+        self.baudrate = baudrate
+        self._chartime = 10.0 / baudrate
+
         if self._port is not None:
-            logger.debug(f"Changing baudrate to {baudrate}")
             try:
                 self._port.baudrate = baudrate
-                self.baudrate = baudrate
-                self._chartime = 10.0 / baudrate
             except (serial.SerialException, NotImplementedError) as e:
-                logger.warning(f"Cannot change baudrate: {e}")
+                logger.debug(f"Cannot change baudrate: {e}")
                 raise
 
     @property
@@ -526,27 +566,30 @@ class BootloaderProtocol:
     NSH_REBOOT_BL = b"reboot -b\n"
     NSH_REBOOT = b"reboot\n"
 
-    # MAVLink reboot commands
+    # MAVLink reboot commands (MAVLink v1 COMMAND_LONG with MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN)
     MAVLINK_REBOOT_ID1 = bytes.fromhex(
         "fe2172ff004c00004040000000000000000000000000"
-        "00000000000000000000000000f60001000053"
-        "6b"
+        "000000000000000000000000f600010000536b"
     )
     MAVLINK_REBOOT_ID0 = bytes.fromhex(
         "fe2145ff004c00004040000000000000000000000000"
-        "00000000000000000000000000f60000000"
-        "0cc37"
+        "000000000000000000000000f600000000cc37"
     )
 
-    def __init__(self, transport: SerialTransport,
-                 sync_timeout: float = 0.5,
-                 erase_timeout: float = 30.0):
+    def __init__(
+        self,
+        transport: SerialTransport,
+        sync_timeout: float = 0.5,
+        erase_timeout: float = 30.0,
+        windowed: bool = False,
+    ):
         """Initialize bootloader protocol handler.
 
         Args:
             transport: Serial transport instance
             sync_timeout: Timeout for sync operations
             erase_timeout: Timeout for chip erase
+            windowed: Use windowed mode for faster uploads on real serial ports
         """
         self.transport = transport
         self.sync_timeout = sync_timeout
@@ -565,7 +608,7 @@ class BootloaderProtocol:
         self.chip_revision: str = ""
 
         # Windowed mode for faster uploads on some interfaces
-        self._windowed_mode = False
+        self._windowed_mode = windowed
         self._window_size = 0
         self._window_max = 256
         self._window_per = 2  # SYNC + result per block
@@ -603,27 +646,28 @@ class BootloaderProtocol:
                 f"Expected INSYNC (0x{BootloaderResponse.INSYNC:02X}), "
                 f"got 0x{insync[0]:02X}",
                 port=self.transport.port_name,
-                operation="sync"
+                operation="sync",
             )
 
         result = self.transport.recv(1)
         if result[0] == BootloaderResponse.INVALID:
-            raise ProtocolError("Bootloader reports INVALID OPERATION",
-                               port=self.transport.port_name)
+            raise ProtocolError(
+                "Bootloader reports INVALID OPERATION", port=self.transport.port_name
+            )
         if result[0] == BootloaderResponse.FAILED:
-            raise ProtocolError("Bootloader reports OPERATION FAILED",
-                               port=self.transport.port_name)
+            raise ProtocolError(
+                "Bootloader reports OPERATION FAILED", port=self.transport.port_name
+            )
         if result[0] == BootloaderResponse.BAD_SILICON_REV:
             raise SiliconErrataError(
                 "Chip has silicon errata, programming not supported.\n"
                 "See https://docs.px4.io/main/en/flight_controller/silicon_errata.html",
-                port=self.transport.port_name
+                port=self.transport.port_name,
             )
         if result[0] != BootloaderResponse.OK:
             raise ProtocolError(
-                f"Expected OK (0x{BootloaderResponse.OK:02X}), "
-                f"got 0x{result[0]:02X}",
-                port=self.transport.port_name
+                f"Expected OK (0x{BootloaderResponse.OK:02X}), got 0x{result[0]:02X}",
+                port=self.transport.port_name,
             )
 
     def _try_sync(self) -> bool:
@@ -641,7 +685,7 @@ class BootloaderProtocol:
             if result[0] == BootloaderResponse.BAD_SILICON_REV:
                 raise SiliconErrataError(
                     "Chip has silicon errata, programming not supported",
-                    port=self.transport.port_name
+                    port=self.transport.port_name,
                 )
             return result[0] == BootloaderResponse.OK
         except TimeoutError:
@@ -661,54 +705,41 @@ class BootloaderProtocol:
 
         data = self.transport.recv(count)
         if len(data) != count:
-            raise ProtocolError(f"Expected {count} bytes, got {len(data)}",
-                               port=self.transport.port_name,
-                               operation="ack_window")
+            raise ProtocolError(
+                f"Expected {count} bytes, got {len(data)}",
+                port=self.transport.port_name,
+                operation="ack_window",
+            )
 
         for i in range(0, len(data), 2):
             if data[i] != BootloaderResponse.INSYNC:
-                raise ProtocolError(f"Expected INSYNC at byte {i}, got 0x{data[i]:02X}",
-                                   port=self.transport.port_name)
+                raise ProtocolError(
+                    f"Expected INSYNC at byte {i}, got 0x{data[i]:02X}",
+                    port=self.transport.port_name,
+                )
             if data[i + 1] == BootloaderResponse.INVALID:
-                raise ProtocolError("Bootloader reports INVALID OPERATION",
-                                   port=self.transport.port_name)
+                raise ProtocolError(
+                    "Bootloader reports INVALID OPERATION",
+                    port=self.transport.port_name,
+                )
             if data[i + 1] == BootloaderResponse.FAILED:
-                raise ProtocolError("Bootloader reports OPERATION FAILED",
-                                   port=self.transport.port_name)
+                raise ProtocolError(
+                    "Bootloader reports OPERATION FAILED", port=self.transport.port_name
+                )
             if data[i + 1] != BootloaderResponse.OK:
-                raise ProtocolError(f"Expected OK, got 0x{data[i + 1]:02X}",
-                                   port=self.transport.port_name)
+                raise ProtocolError(
+                    f"Expected OK, got 0x{data[i + 1]:02X}",
+                    port=self.transport.port_name,
+                )
 
     def _detect_interface_type(self) -> None:
         """Detect if connected via USB CDC or real serial port.
 
         Sets windowed mode for FTDI-type serial interfaces on Windows.
+        Currently just resets buffers - windowed mode detection disabled
+        as it adds latency and complexity.
         """
         self.transport.reset_buffers()
-
-        # Try an unusual baud rate that real serial ports can't handle
-        original_baudrate = self.transport.baudrate
-        try:
-            self.transport.set_baudrate(int(original_baudrate * 2.33))
-        except NotImplementedError:
-            logger.debug("Baudrate change not supported, assuming USB CDC")
-            return
-
-        try:
-            self._send_command(BootloaderCommand.GET_SYNC)
-            self._get_sync(flush=False)
-            # If sync worked at wrong baud rate, it's USB CDC (ignores baudrate)
-            logger.debug("USB CDC detected (baudrate ignored)")
-        except (ProtocolError, TimeoutError):
-            # Sync failed = real serial port, enable windowed mode on Windows
-            if sys.platform.startswith("win"):
-                logger.debug("Real serial port detected, enabling windowed mode")
-                self._windowed_mode = True
-        finally:
-            try:
-                self.transport.set_baudrate(original_baudrate)
-            except Exception:
-                pass
 
     def sync(self) -> None:
         """Synchronize with bootloader.
@@ -831,7 +862,7 @@ class BootloaderProtocol:
             raise ProtocolError(
                 f"Bootloader protocol {self.bl_rev} too old "
                 f"(minimum {ProtocolConfig.BL_REV_MIN})",
-                port=self.transport.port_name
+                port=self.transport.port_name,
             )
         if self.bl_rev > ProtocolConfig.BL_REV_MAX:
             logger.warning(
@@ -892,8 +923,9 @@ class BootloaderProtocol:
         except (TimeoutError, ProtocolError) as e:
             logger.debug(f"Could not read chip description: {e}")
 
-    def erase(self, force_full: bool = False,
-              progress_callback: Optional[callable] = None) -> None:
+    def erase(
+        self, force_full: bool = False, progress_callback: Optional[callable] = None
+    ) -> None:
         """Erase the flash memory.
 
         Args:
@@ -904,10 +936,10 @@ class BootloaderProtocol:
             TimeoutError: If erase times out
             ProtocolError: If erase fails
         """
-        logger.info(f"Erasing flash (windowed mode: {self._windowed_mode})")
+        logger.debug("Erasing flash")
 
         if force_full and self.bl_rev >= 6:
-            logger.info("Using full chip erase")
+            logger.debug("Using full chip erase")
             self._send_command(BootloaderCommand.CHIP_FULL_ERASE)
         else:
             self._send_command(BootloaderCommand.CHIP_ERASE)
@@ -927,7 +959,7 @@ class BootloaderProtocol:
                     progress_callback(usual_duration, usual_duration)
 
             if self._try_sync():
-                logger.info("Erase complete")
+                logger.debug("Erase complete")
                 if progress_callback:
                     progress_callback(1.0, 1.0)
                 return
@@ -935,11 +967,12 @@ class BootloaderProtocol:
         raise TimeoutError(
             f"Erase timed out after {self.erase_timeout}s",
             port=self.transport.port_name,
-            operation="erase"
+            operation="erase",
         )
 
-    def program(self, firmware: Firmware,
-                progress_callback: Optional[callable] = None) -> None:
+    def program(
+        self, firmware: Firmware, progress_callback: Optional[callable] = None
+    ) -> None:
         """Program firmware to flash.
 
         Args:
@@ -953,11 +986,11 @@ class BootloaderProtocol:
         total = len(image)
         written = 0
 
-        logger.info(f"Programming {total} bytes")
+        logger.debug(f"Programming {total} bytes")
 
         # Split image into chunks
         chunk_size = ProtocolConfig.PROG_MULTI_MAX
-        chunks = [image[i:i + chunk_size] for i in range(0, total, chunk_size)]
+        chunks = [image[i: i + chunk_size] for i in range(0, total, chunk_size)]
 
         for i, chunk in enumerate(chunks):
             self._program_multi(chunk)
@@ -981,7 +1014,7 @@ class BootloaderProtocol:
             self._validate_sync_window(self._window_size)
             self._window_size = 0
 
-        logger.info("Programming complete")
+        logger.debug("Programming complete")
 
     def _program_multi(self, data: bytes) -> None:
         """Program a chunk of data.
@@ -998,8 +1031,9 @@ class BootloaderProtocol:
             # Delay based on transmission time plus flash programming time
             time.sleep(length * self.transport.chartime + 0.001)
 
-    def verify_crc(self, firmware: Firmware,
-                   progress_callback: Optional[callable] = None) -> None:
+    def verify_crc(
+        self, firmware: Firmware, progress_callback: Optional[callable] = None
+    ) -> None:
         """Verify programmed firmware using CRC (v3+).
 
         Args:
@@ -1010,10 +1044,12 @@ class BootloaderProtocol:
             ProtocolError: If verification fails
         """
         if self.bl_rev < 3:
-            raise ProtocolError("CRC verification requires bootloader v3+",
-                               port=self.transport.port_name)
+            raise ProtocolError(
+                "CRC verification requires bootloader v3+",
+                port=self.transport.port_name,
+            )
 
-        logger.info("Verifying CRC")
+        logger.debug("Verifying CRC")
 
         expected_crc = firmware.crc(self.fw_maxsize)
         logger.debug(f"Expected CRC: 0x{expected_crc:08X}")
@@ -1039,13 +1075,14 @@ class BootloaderProtocol:
                 f"CRC mismatch: expected 0x{expected_crc:08X}, "
                 f"got 0x{reported_crc:08X}",
                 port=self.transport.port_name,
-                operation="verify"
+                operation="verify",
             )
 
-        logger.info("CRC verification passed")
+        logger.debug("CRC verification passed")
 
-    def verify_read(self, firmware: Firmware,
-                    progress_callback: Optional[callable] = None) -> None:
+    def verify_read(
+        self, firmware: Firmware, progress_callback: Optional[callable] = None
+    ) -> None:
         """Verify programmed firmware by reading back (v2).
 
         Args:
@@ -1055,7 +1092,7 @@ class BootloaderProtocol:
         Raises:
             ProtocolError: If verification fails
         """
-        logger.info("Verifying by read-back")
+        logger.debug("Verifying by read-back")
 
         self._send_command(BootloaderCommand.CHIP_VERIFY)
         self._get_sync()
@@ -1065,7 +1102,7 @@ class BootloaderProtocol:
         verified = 0
 
         chunk_size = ProtocolConfig.READ_MULTI_MAX
-        chunks = [image[i:i + chunk_size] for i in range(0, total, chunk_size)]
+        chunks = [image[i: i + chunk_size] for i in range(0, total, chunk_size)]
 
         for chunk in chunks:
             length = len(chunk)
@@ -1081,18 +1118,21 @@ class BootloaderProtocol:
                 logger.error(f"Verify failed at offset {verified}")
                 logger.debug(f"Expected: {chunk.hex()}")
                 logger.debug(f"Got:      {readback.hex()}")
-                raise ProtocolError("Verification failed",
-                                   port=self.transport.port_name,
-                                   operation="verify")
+                raise ProtocolError(
+                    "Verification failed",
+                    port=self.transport.port_name,
+                    operation="verify",
+                )
 
             verified += length
             if progress_callback:
                 progress_callback(verified, total)
 
-        logger.info("Read-back verification passed")
+        logger.debug("Read-back verification passed")
 
-    def verify(self, firmware: Firmware,
-               progress_callback: Optional[callable] = None) -> None:
+    def verify(
+        self, firmware: Firmware, progress_callback: Optional[callable] = None
+    ) -> None:
         """Verify programmed firmware using appropriate method.
 
         Uses CRC for v3+ bootloaders, read-back for v2.
@@ -1116,10 +1156,7 @@ class BootloaderProtocol:
             logger.warning("Boot delay requires bootloader v5+")
             return
 
-        self._send_command(
-            BootloaderCommand.SET_BOOT_DELAY,
-            struct.pack("b", delay_ms)
-        )
+        self._send_command(BootloaderCommand.SET_BOOT_DELAY, struct.pack("b", delay_ms))
         self._get_sync()
         logger.info(f"Boot delay set to {delay_ms}ms")
 
@@ -1141,8 +1178,9 @@ class BootloaderProtocol:
                 # Timeout is expected - board is rebooting
                 pass
 
-    def send_reboot_commands(self, baudrates: list[int],
-                             use_protocol_splitter: bool = False) -> bool:
+    def send_reboot_commands(
+        self, baudrates: list[int], use_protocol_splitter: bool = False
+    ) -> bool:
         """Send reboot commands to try to enter bootloader.
 
         Tries MAVLink and NSH reboot commands at various baud rates.
@@ -1170,8 +1208,8 @@ class BootloaderProtocol:
 
             try:
                 self.transport.flush()
-                send(self.MAVLINK_REBOOT_ID1)
                 send(self.MAVLINK_REBOOT_ID0)
+                send(self.MAVLINK_REBOOT_ID1)
                 send(self.NSH_INIT)
                 send(self.NSH_REBOOT_BL)
                 send(self.NSH_INIT)
@@ -1376,14 +1414,12 @@ class PortDetector:
 
 
 class ProgressBar:
-    """Terminal progress bar with transfer speed and ETA."""
+    """Terminal progress bar."""
 
-    def __init__(self, label: str, total: float, unit: str = "bytes"):
+    def __init__(self, label: str, total: float):
         self.label = label
         self.total = total
-        self.unit = unit
         self.current = 0.0
-        self.start_time = time.monotonic()
         self._is_tty = sys.stdout.isatty()
 
     def update(self, current: float, total: Optional[float] = None) -> None:
@@ -1400,25 +1436,12 @@ class ProgressBar:
         if self.total <= 0:
             return
 
-        percent = (self.current / self.total) * 100.0
+        percent = int((self.current / self.total) * 100.0)
         bar_width = 20
         filled = int(bar_width * self.current / self.total)
 
-        # Calculate speed and ETA
-        elapsed = time.monotonic() - self.start_time
-        if elapsed > 0 and self.current > 0:
-            speed = self.current / elapsed
-            remaining = self.total - self.current
-            eta = remaining / speed if speed > 0 else 0
-            speed_str = f" {speed / 1024:.1f} KB/s" if self.unit == "bytes" else ""
-            eta_str = f" ETA {eta:.0f}s" if eta > 1 else ""
-        else:
-            speed_str = ""
-            eta_str = ""
-
-        # Build progress line
         bar = "=" * filled + " " * (bar_width - filled)
-        line = f"{self.label}: [{bar}] {percent:5.1f}%{speed_str}{eta_str}"
+        line = f"{self.label}: [{bar}] {percent:3d}%"
 
         if self._is_tty:
             print(f"\r{line}", end="", flush=True)
@@ -1439,6 +1462,7 @@ class ProgressBar:
 @dataclass
 class UploaderConfig:
     """Configuration for uploader."""
+
     port: Optional[str] = None
     baud_bootloader: int = 115200
     baud_flightstack: list[int] = field(default_factory=lambda: [57600])
@@ -1446,9 +1470,8 @@ class UploaderConfig:
     force_erase: bool = False
     boot_delay: Optional[int] = None
     use_protocol_splitter: bool = False
-    erase_timeout: float = 30.0
-    sync_timeout: float = 0.5
     retry_count: int = 3
+    windowed: bool = False
 
 
 class Uploader:
@@ -1540,7 +1563,6 @@ class Uploader:
         transport = SerialTransport(
             port,
             baudrate=self.config.baud_bootloader,
-            timeout=self.config.sync_timeout
         )
 
         try:
@@ -1550,8 +1572,7 @@ class Uploader:
 
         protocol = BootloaderProtocol(
             transport,
-            sync_timeout=self.config.sync_timeout,
-            erase_timeout=self.config.erase_timeout
+            windowed=self.config.windowed,
         )
 
         try:
@@ -1569,8 +1590,9 @@ class Uploader:
         finally:
             transport.close()
 
-    def _try_identify(self, transport: SerialTransport,
-                      protocol: BootloaderProtocol) -> bool:
+    def _try_identify(
+        self, transport: SerialTransport, protocol: BootloaderProtocol
+    ) -> bool:
         """Try to identify the bootloader, sending reboot if needed.
 
         Args:
@@ -1580,53 +1602,86 @@ class Uploader:
         Returns:
             True if bootloader identified
         """
-        baud_index = -1
+        # First try to identify without reboot
+        try:
+            protocol.identify()
+            print()
+            print(
+                f"Found board {protocol.board_type},{protocol.board_rev} "
+                f"bootloader v{protocol.bl_rev} on {transport.port_name}"
+            )
+            return True
+        except (ProtocolError, TimeoutError):
+            pass
 
-        while True:
+        # Try rebooting at each baud rate
+        for baud in self.config.baud_flightstack:
+            print(
+                f"Attempting reboot on {transport.port_name} at {baud} baud...",
+                file=sys.stderr,
+            )
+
             try:
-                protocol.identify()
-                print()
-                print(f"Found board {protocol.board_type},{protocol.board_rev} "
-                      f"bootloader v{protocol.bl_rev} on {transport.port_name}")
-                return True
+                transport.set_baudrate(baud)
+            except Exception:
+                continue
 
-            except (ProtocolError, TimeoutError):
-                # Try sending reboot command
-                baud_index += 1
-                if baud_index >= len(self.config.baud_flightstack):
-                    return False
-
-                print(f"Attempting reboot on {transport.port_name} "
-                      f"at {self.config.baud_flightstack[baud_index]} baud...",
-                      file=sys.stderr)
-
+            # Send reboot commands multiple times to increase reliability
+            # The board might be busy and miss the first command
+            for attempt in range(3):
                 try:
-                    transport.set_baudrate(self.config.baud_flightstack[baud_index])
-                except Exception:
-                    continue
+                    transport.reset_buffers()
 
-                try:
-                    transport.flush()
-                    transport.send(protocol.MAVLINK_REBOOT_ID1)
+                    # Send MAVLink reboot-to-bootloader commands
+                    # Send broadcast (0/0) first, then targeted (1/0)
                     transport.send(protocol.MAVLINK_REBOOT_ID0)
+                    transport.send(protocol.MAVLINK_REBOOT_ID1)
+                    transport.flush()
+
+                    # Give MAVLink stack time to process
+                    time.sleep(0.1)
+
+                    # Send NSH reboot-to-bootloader command
                     transport.send(protocol.NSH_INIT)
+                    time.sleep(0.05)
                     transport.send(protocol.NSH_REBOOT_BL)
                     transport.flush()
+
+                    time.sleep(0.2)
                 except Exception:
                     pass
 
-                time.sleep(0.5)
-                transport.close()
-                time.sleep(0.3)
+            # Wait for reboot - give the board time to process and restart
+            time.sleep(0.5)
+            transport.close()
+            time.sleep(0.5)
 
+            # Reopen at bootloader baud rate and try to identify
+            try:
+                transport.set_baudrate(self.config.baud_bootloader)
+                transport.open()
+            except Exception:
+                continue
+
+            # Try to identify multiple times - board may take time to enter bootloader
+            for identify_attempt in range(5):
                 try:
-                    transport.set_baudrate(self.config.baud_bootloader)
-                    transport.open()
-                except Exception:
-                    pass
+                    protocol.identify()
+                    print()
+                    print(
+                        f"Found board {protocol.board_type},{protocol.board_rev} "
+                        f"bootloader v{protocol.bl_rev} on {transport.port_name}"
+                    )
+                    return True
+                except (ProtocolError, TimeoutError):
+                    # Board may still be rebooting, wait a bit and retry
+                    time.sleep(0.3)
 
-    def _select_firmware(self, firmwares: list[Firmware],
-                         protocol: BootloaderProtocol) -> Firmware:
+        return False
+
+    def _select_firmware(
+        self, firmwares: list[Firmware], protocol: BootloaderProtocol
+    ) -> Firmware:
         """Select appropriate firmware for the board.
 
         Args:
@@ -1646,14 +1701,16 @@ class Uploader:
                 return fw
 
         if self.config.force and len(firmwares) == 1:
-            print(f"WARNING: Firmware board_id={firmwares[0].board_id} "
-                  f"does not match device board_id={protocol.board_type}")
+            print(
+                f"WARNING: Firmware board_id={firmwares[0].board_id} "
+                f"does not match device board_id={protocol.board_type}"
+            )
             print("FORCED UPLOAD, FLASHING ANYWAY!")
             return firmwares[0]
 
         raise BoardMismatchError(
             f"No suitable firmware for board {protocol.board_type}",
-            details=f"available: {[fw.board_id for fw in firmwares]}"
+            details=f"available: {[fw.board_id for fw in firmwares]}",
         )
 
     def _do_upload(self, protocol: BootloaderProtocol, firmware: Firmware) -> None:
@@ -1666,8 +1723,10 @@ class Uploader:
         start_time = time.monotonic()
 
         # Print firmware info
-        print(f"\nFirmware: board_id={firmware.board_id}, "
-              f"revision={firmware.board_revision}")
+        print(
+            f"\nFirmware: board_id={firmware.board_id}, "
+            f"revision={firmware.board_revision}"
+        )
         print(f"Size: {firmware.image_size} bytes ({firmware.usage_percent:.1f}%)")
         print(f"Bootloader version: {protocol.version}")
 
@@ -1688,37 +1747,39 @@ class Uploader:
             )
 
         # Check for undersized config
-        if (protocol.bl_rev >= 5 and
-            protocol.fw_maxsize > firmware.image_maxsize and
-            not self.config.force):
-            print(f"WARNING: Board flash ({protocol.fw_maxsize} bytes) "
-                  f"larger than firmware config ({firmware.image_maxsize} bytes)")
+        if (
+            protocol.bl_rev >= 5
+            and protocol.fw_maxsize > firmware.image_maxsize
+            and not self.config.force
+        ):
+            print(
+                f"WARNING: Board flash ({protocol.fw_maxsize} bytes) "
+                f"larger than firmware config ({firmware.image_maxsize} bytes)"
+            )
 
         # Print OTP/SN info
         self._print_board_info(protocol)
 
         # Erase
         print()
-        erase_bar = ProgressBar("Erase  ", 15.0, unit="seconds")
+        erase_bar = ProgressBar("Erase  ", 15.0)
         protocol.erase(
             force_full=self.config.force_erase,
-            progress_callback=lambda c, t: erase_bar.update(c, t)
+            progress_callback=lambda c, t: erase_bar.update(c, t),
         )
         erase_bar.finish()
 
         # Program
         program_bar = ProgressBar("Program", len(firmware.image))
         protocol.program(
-            firmware,
-            progress_callback=lambda c, t: program_bar.update(c, t)
+            firmware, progress_callback=lambda c, t: program_bar.update(c, t)
         )
         program_bar.finish()
 
         # Verify
-        verify_bar = ProgressBar("Verify ", 1.0, unit="")
+        verify_bar = ProgressBar("Verify ", 1.0)
         protocol.verify(
-            firmware,
-            progress_callback=lambda c, t: verify_bar.update(c, t)
+            firmware, progress_callback=lambda c, t: verify_bar.update(c, t)
         )
         verify_bar.finish()
 
@@ -1748,13 +1809,12 @@ class Uploader:
             print(f"Revision: {protocol.chip_revision}")
 
         print(f"Flash: {protocol.fw_maxsize} bytes")
+        print(f"Windowed mode: {'yes' if protocol._windowed_mode else 'no'}")
 
     def _send_gcs_release(self) -> None:
         """Send UDP message to release serial port from GCS."""
         try:
-            heartbeat = bytes.fromhex(
-                "fe097001010000000100020c5103033c8a"
-            )
+            heartbeat = bytes.fromhex("fe097001010000000100020c5103033c8a")
             command = bytes.fromhex(
                 "fe210101014c0000000000000000000000000000000000"
                 "00000000000000803f00000000f6000000008459"
@@ -1784,57 +1844,59 @@ Examples:
   %(prog)s --port /dev/ttyACM0 firmware.px4
   %(prog)s --port /dev/serial/by-id/*PX4* firmware.px4
   %(prog)s -v --force firmware.px4
-        """
+        """,
     )
 
+    parser.add_argument("firmware", nargs="+", help="Firmware file(s) to upload")
     parser.add_argument(
-        "firmware", nargs="+",
-        help="Firmware file(s) to upload"
-    )
-    parser.add_argument(
-        "--port", "-p",
+        "--port",
+        "-p",
         help="Serial port(s) to use (comma-separated, supports wildcards). "
-             "If not specified, auto-detects PX4 devices."
+        "If not specified, auto-detects PX4 devices.",
     )
     parser.add_argument(
-        "--baud-bootloader", type=int, default=115200,
-        help="Bootloader baud rate (default: 115200)"
+        "--baud-bootloader",
+        type=int,
+        default=115200,
+        help="Bootloader baud rate (default: 115200)",
     )
     parser.add_argument(
-        "--baud-flightstack", default="57600",
-        help="Flight stack baud rate(s) for reboot (comma-separated, default: 57600)"
+        "--baud-flightstack",
+        default="57600",
+        help="Flight stack baud rate(s) for reboot (comma-separated, default: 57600)",
     )
     parser.add_argument(
-        "--force", "-f", action="store_true",
-        help="Force upload even if board ID doesn't match"
+        "--force",
+        "-f",
+        action="store_true",
+        help="Force upload even if board ID doesn't match",
     )
     parser.add_argument(
-        "--force-erase", action="store_true",
-        help="Force full chip erase (v6+ bootloader)"
+        "--force-erase",
+        action="store_true",
+        help="Force full chip erase (v6+ bootloader)",
     )
     parser.add_argument(
-        "--boot-delay", type=int,
-        help="Boot delay in milliseconds to store in flash"
+        "--boot-delay", type=int, help="Boot delay in milliseconds to store in flash"
     )
     parser.add_argument(
-        "--erase-timeout", type=float, default=30.0,
-        help="Erase timeout in seconds (default: 30)"
+        "--use-protocol-splitter-format",
+        action="store_true",
+        help="Use protocol splitter framing for reboot commands",
     )
     parser.add_argument(
-        "--sync-timeout", type=float, default=0.5,
-        help="Sync timeout in seconds (default: 0.5)"
+        "--windowed",
+        action="store_true",
+        help="Use windowed mode for faster uploads on real serial ports (FTDI)",
     )
     parser.add_argument(
-        "--use-protocol-splitter-format", action="store_true",
-        help="Use protocol splitter framing for reboot commands"
+        "--verbose", "-v", action="store_true", help="Enable verbose output"
     )
     parser.add_argument(
-        "--verbose", "-v", action="store_true",
-        help="Enable verbose output"
-    )
-    parser.add_argument(
-        "--debug", "-d", action="store_true",
-        help="Enable debug output (includes protocol traces)"
+        "--debug",
+        "-d",
+        action="store_true",
+        help="Enable debug output (includes protocol traces)",
     )
 
     args = parser.parse_args()
@@ -1861,8 +1923,7 @@ Examples:
         force_erase=args.force_erase,
         boot_delay=args.boot_delay,
         use_protocol_splitter=args.use_protocol_splitter_format,
-        erase_timeout=args.erase_timeout,
-        sync_timeout=args.sync_timeout,
+        windowed=args.windowed,
     )
 
     if args.use_protocol_splitter_format:

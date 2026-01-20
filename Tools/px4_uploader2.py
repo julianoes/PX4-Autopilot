@@ -1413,45 +1413,128 @@ class PortDetector:
 # =============================================================================
 
 
-class ProgressBar:
-    """Terminal progress bar."""
+class UploadProgressBar:
+    """Unified progress bar for the entire upload process.
 
-    def __init__(self, label: str, total: float):
-        self.label = label
-        self.total = total
-        self.current = 0.0
+    Shows a single progress bar with phases:
+    - Erase: 0-45%
+    - Program: 45-99%
+    - Verify: 99-100%
+    """
+
+    ERASE_START = 0
+    ERASE_END = 45
+    PROGRAM_START = 45
+    PROGRAM_END = 99
+    VERIFY_START = 99
+    VERIFY_END = 100
+
+    def __init__(self):
         self._is_tty = sys.stdout.isatty()
+        self._start_time = time.monotonic()
+        self._last_update = 0.0
+        self._last_percent = -1
+        self._phase = "Erase"
+        self._program_bytes = 0
+        self._program_start_time = 0.0
 
-    def update(self, current: float, total: Optional[float] = None) -> None:
-        """Update progress display.
-
-        Args:
-            current: Current progress value
-            total: Optional new total (for dynamic totals)
-        """
-        if total is not None:
-            self.total = total
-        self.current = min(current, self.total)
-
-        if self.total <= 0:
+    def _render(self, percent: int, rate_str: str = "") -> None:
+        """Render the progress bar."""
+        if percent == self._last_percent and percent < 100:
             return
 
-        percent = int((self.current / self.total) * 100.0)
-        bar_width = 20
-        filled = int(bar_width * self.current / self.total)
+        # Step through each percent for smooth animation
+        if self._is_tty and self._last_percent >= 0 and percent > self._last_percent + 1:
+            for p in range(self._last_percent + 1, percent):
+                self._render_single(p, rate_str)
+                time.sleep(0.02)
 
-        bar = "=" * filled + " " * (bar_width - filled)
-        line = f"{self.label}: [{bar}] {percent:3d}%"
+        self._render_single(percent, rate_str)
+        self._last_percent = percent
+
+    def _render_single(self, percent: int, rate_str: str = "") -> None:
+        """Render a single frame of the progress bar."""
+        bar_width = 30
+        filled_exact = bar_width * percent / 100.0
+        filled_full = int(filled_exact)
+        filled_partial = filled_exact - filled_full
+
+        # Unicode block characters for smooth progress
+        blocks = " ▏▎▍▌▋▊▉█"
+        partial_idx = int(filled_partial * 8)
+
+        bar = "█" * filled_full
+        if filled_full < bar_width:
+            bar += blocks[partial_idx]
+            bar += " " * (bar_width - filled_full - 1)
+
+        # Build the line with fixed-width phase label
+        line = f"{self._phase:8s} ▕{bar}▏ {percent:3d}%{rate_str}"
 
         if self._is_tty:
             print(f"\r{line}", end="", flush=True)
         else:
-            print(line)
+            if percent % 10 == 0 or percent >= 100:
+                print(line)
+
+    def update_erase(self, current: float, total: float) -> None:
+        """Update progress during erase phase (0-45%)."""
+        self._phase = "Erase"
+        if total <= 0:
+            return
+        phase_progress = min(current / total, 1.0)
+        percent = int(self.ERASE_START + phase_progress * (self.ERASE_END - self.ERASE_START))
+        self._render(percent)
+
+    def update_program(self, current: float, total: float) -> None:
+        """Update progress during program phase (45-90%)."""
+        self._phase = "Program"
+        if self._program_start_time == 0:
+            self._program_start_time = time.monotonic()
+        self._program_bytes = current
+
+        if total <= 0:
+            return
+        phase_progress = min(current / total, 1.0)
+        percent = int(self.PROGRAM_START + phase_progress * (self.PROGRAM_END - self.PROGRAM_START))
+
+        # Calculate transfer rate
+        rate_str = ""
+        elapsed = time.monotonic() - self._program_start_time
+        if elapsed > 0 and current > 0:
+            rate = current / elapsed / 1024  # KB/s
+            rate_str = f" {rate:6.1f} KB/s"
+
+        self._render(percent, rate_str)
+
+    def update_verify(self, current: float, total: float) -> None:
+        """Update progress during verify phase (90-100%)."""
+        self._phase = "Verify"
+        if total <= 0:
+            return
+        phase_progress = min(current / total, 1.0)
+        percent = int(self.VERIFY_START + phase_progress * (self.VERIFY_END - self.VERIFY_START))
+        self._render(percent)
 
     def finish(self) -> None:
-        """Complete the progress bar."""
-        self.update(self.total)
-        print()  # New line
+        """Complete the progress bar and show summary."""
+        # Show "Verify" at 100% briefly so user sees verification passed
+        self._phase = "Verify"
+        self._last_percent = -1  # Force render
+        self._render(100)
+
+        if self._is_tty:
+            time.sleep(0.5)
+
+        elapsed = time.monotonic() - self._start_time
+
+        if self._is_tty:
+            # Clear the progress line and print summary
+            print("\r\033[K", end="")
+        else:
+            print()
+
+        print(f"Uploaded in {int(elapsed)}s")
 
 
 # =============================================================================
@@ -1720,8 +1803,6 @@ class Uploader:
             protocol: Bootloader protocol handler
             firmware: Firmware to upload
         """
-        start_time = time.monotonic()
-
         # Print firmware info
         print(
             f"\nFirmware: board_id={firmware.board_id}, "
@@ -1760,39 +1841,29 @@ class Uploader:
         # Print OTP/SN info
         self._print_board_info(protocol)
 
-        # Erase
+        # Create unified progress bar
         print()
-        erase_bar = ProgressBar("Erase  ", 15.0)
+        progress = UploadProgressBar()
+
+        # Erase
         protocol.erase(
             force_full=self.config.force_erase,
-            progress_callback=lambda c, t: erase_bar.update(c, t),
+            progress_callback=progress.update_erase,
         )
-        erase_bar.finish()
 
         # Program
-        program_bar = ProgressBar("Program", len(firmware.image))
-        protocol.program(
-            firmware, progress_callback=lambda c, t: program_bar.update(c, t)
-        )
-        program_bar.finish()
+        protocol.program(firmware, progress_callback=progress.update_program)
 
         # Verify
-        verify_bar = ProgressBar("Verify ", 1.0)
-        protocol.verify(
-            firmware, progress_callback=lambda c, t: verify_bar.update(c, t)
-        )
-        verify_bar.finish()
+        protocol.verify(firmware, progress_callback=progress.update_verify)
 
         # Set boot delay if requested
         if self.config.boot_delay is not None:
             protocol.set_boot_delay(self.config.boot_delay)
 
-        # Reboot
-        print("\nRebooting...", end="")
+        # Reboot and show summary
         protocol.reboot()
-
-        elapsed = time.monotonic() - start_time
-        print(f" done. Elapsed time: {elapsed:.1f}s")
+        progress.finish()
 
     def _print_board_info(self, protocol: BootloaderProtocol) -> None:
         """Print board OTP and chip info."""

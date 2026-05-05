@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# CubePilot NW Blue FPV specific board sensors init
+#------------------------------------------------------------------------------
+
+board_adc start
+
+# Internal magnetometer on I2C3
+iis2mdc -I -b 3 start
+
+# Internal IMU (ICM45686) on SPI3 inside the CubeNode module.
+# Carrier orientation TBD; rotation flag may need to be added once mounting
+# is finalized.
+icm45686 -s start
+
+# Internal barometer (DPS368) on SPI3 (handled by the dps310 driver)
+dps310 -s start

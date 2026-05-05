@@ -1,0 +1,14 @@
+#!/bin/sh
+#
+# CubePilot NW Blue FPV specific board defaults
+#------------------------------------------------------------------------------
+
+param set-default SYS_DM_BACKEND 1
+
+# VSYS divider on PF3 (ADC3_INP5): 200k high-side, 10k low-side = 21x.
+# Calibrated against 12.7V VSYS on rev A hardware.
+param set-default BAT1_V_DIV 21.0
+# Current sense scale (PC2_C / ADC3_INP0) — TODO: characterize on hardware.
+param set-default BAT1_A_PER_V 36.367
+
+# system_power monitoring is provided via ADC dividers in board_config.h

@@ -64,7 +64,7 @@ boot_app_shared_section app_descriptor_t AppDescriptor = {
 	.git_hash  = 0,   /* filled by post-processing */
 	.major_version = 0,
 	.minor_version = 1,
-	.board_id = 5830,  /* NW Blue FPV board ID */
+	.board_id = 5730,  /* NW Blue FPV board ID */
 	.reserved = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 };
 #include <nuttx/board.h>

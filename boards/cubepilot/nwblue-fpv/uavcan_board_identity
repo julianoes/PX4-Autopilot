@@ -8,7 +8,7 @@ add_definitions(
 
 set(uavcanblid_hw_version_major 1)
 set(uavcanblid_hw_version_minor 0)
-set(uavcanblid_hw_board_id 5830)
+set(uavcanblid_hw_board_id 5730)
 set(uavcanblid_name "\"org.cubepilot.nwbluefpv\"")
 
 # STM32H7 requires 32-byte aligned flash writes
